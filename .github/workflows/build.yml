@@ -1,0 +1,45 @@
+name: Build Lumen
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:setup
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:server
+      - run: npm run test:desktop
+      - run: npm run build:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lumen-Windows
+          path: release/*Setup.exe
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck && npm run build && npm run test:server
+      - run: docker compose up -d --build --wait --wait-timeout 180
+      - run: curl --fail http://127.0.0.1:8080/healthz && curl --fail http://127.0.0.1:8080/ -o /tmp/lumen.html
+      - run: docker compose down
+        if: always()
+      - run: npm run build:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lumen-Linux-server
+          path: release/*.tar.gz

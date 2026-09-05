@@ -1,0 +1,94 @@
+{
+  "name": "lumen",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test:layout": "node tools/layout-check.mjs",
+    "test:api": "node tools/api-config-check.mjs",
+    "start": "node server/start.cjs",
+    "desktop:setup": "node node_modules/electron/install.js",
+    "desktop": "electron .",
+    "build:win": "npm run typecheck && npm run build && electron-builder --win nsis --x64",
+    "pack:win": "npm run build && electron-builder --win --dir --x64",
+    "test:server": "node --test tests/server.test.cjs",
+    "test:desktop": "node tools/desktop-check.mjs",
+    "build:linux": "node tools/package-linux.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "clsx": "2.1.1",
+    "music-metadata": "^11.15.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "tailwind-merge": "3.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.17",
+    "@types/node": "22.19.17",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "electron": "44.2.0",
+    "electron-builder": "26.15.3",
+    "playwright": "1.62.1",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3",
+    "vite": "7.3.2",
+    "vite-plugin-singlefile": "2.3.0"
+  },
+  "description": "Lumen local and online music player",
+  "author": "Lumen",
+  "main": "desktop/main.cjs",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "build": {
+    "appId": "app.lumen.player",
+    "productName": "Lumen",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "server/**/*",
+      "config/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Lumen-${version}-Windows-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lumen",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "overrides": {
+    "qs": "6.16.0"
+  }
+}

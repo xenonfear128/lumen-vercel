@@ -1,0 +1,23 @@
+services:
+  lumen:
+    build: .
+    image: lumen:0.1.0
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${LUMEN_BIND_ADDRESS:-127.0.0.1}:${LUMEN_PORT:-8080}:3000"
+    environment:
+      LUMEN_AUTH_USER: ${LUMEN_AUTH_USER:-}
+      LUMEN_AUTH_PASSWORD: ${LUMEN_AUTH_PASSWORD:-}
+    volumes:
+      - lumen-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 10s
+volumes:
+  lumen-data:

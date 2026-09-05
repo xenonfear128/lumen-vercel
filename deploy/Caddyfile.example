@@ -1,0 +1,5 @@
+# Optional HTTPS reverse proxy. Replace music.example.com with your domain.
+# When Caddy runs directly on the host:
+music.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
