@@ -1,0 +1,2 @@
+# Preserve the inline theme bootstrap bytes used by the Vercel CSP hash.
+index.html -text

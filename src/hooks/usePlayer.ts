@@ -3,6 +3,7 @@ import { AudioEngine, EQ_PRESETS, computeAutoPreamp, type PresetKey } from "../l
 import { createTrack, folderNameFromFiles, isAudioFile, makeId, parseAll, stripExt } from "../lib/metadata";
 import { addListening, addPlay, emptyStats, loadStats, saveStats, trackKey, type StatsData } from "../lib/stats";
 import { loadConfig, saveConfig, songUrls, applyAudioProxy, type NeteaseConfig } from "../lib/netease";
+import { loadLibrary, saveLibrary, storeFiles, restoreFiles, removeFiles } from "../lib/libraryStorage";
 import type { PlayMode, Playlist, Track, VizMode } from "../lib/types";
 
 const LS = {
@@ -37,13 +38,15 @@ export function usePlayer() {
   const engine = engineRef.current;
   const audio = engine.audio;
 
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [viewPlaylistId, setViewPlaylistId] = useState<string | null>(null);
-  const [queuePlaylistId, setQueuePlaylistId] = useState<string | null>(null);
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [initialLibrary] = useState(loadLibrary);
+  const [playlists, setPlaylists] = useState<Playlist[]>(initialLibrary.playlists);
+  const [viewPlaylistId, setViewPlaylistId] = useState<string | null>(initialLibrary.viewPlaylistId);
+  const [queuePlaylistId, setQueuePlaylistId] = useState<string | null>(initialLibrary.queuePlaylistId);
+  const [currentId, setCurrentId] = useState<string | null>(initialLibrary.currentId);
+  const [storageError, setStorageError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(initialLibrary.playlists.flatMap(p => p.tracks).find(t => t.id === initialLibrary.currentId)?.duration ?? 0);
   const [volume, setVolumeState] = useState<number>(() => {
     const v = parseFloat(localStorage.getItem(LS.volume) || "0.8");
     return isNaN(v) ? 0.8 : v;
@@ -56,7 +59,7 @@ export function usePlayer() {
   const [sessionMs, setSessionMs] = useState(0);
   const [loadingCount, setLoadingCount] = useState(0);
   const [resolving, setResolving] = useState(false);
-  const [trackError, setTrackError] = useState<string | null>(null);
+  const [trackError, setTrackError] = useState<{ kind: "unavailable" | "service" | "playback"; title: string } | null>(null);
   const [netease, setNetease] = useState<NeteaseConfig>(loadConfig);
 
   const historyRef = useRef<string[]>([]);
@@ -72,52 +75,46 @@ export function usePlayer() {
   statsRef.current = stats;
   const saveTimer = useRef<number | null>(null);
 
+
   // Latest-state refs for event handlers
-  const stateRef = useRef({ playlists, queuePlaylistId, currentId, mode });
-  stateRef.current = { playlists, queuePlaylistId, currentId, mode };
+  const stateRef = useRef({ playlists, viewPlaylistId, queuePlaylistId, currentId, mode });
+  stateRef.current = { playlists, viewPlaylistId, queuePlaylistId, currentId, mode };
 
-  // ---------- NetEase online library persistence ----------
-  const ONLINE_KEY = "lumen.online.v1";
-  const hydratedRef = useRef(false);
+  // Restore local audio bytes separately from the synchronous library manifest.
   useEffect(() => {
-    // Hydrate once on mount: re-create online playlists from localStorage.
-    // StrictMode re-runs mount effects in dev, so guard with a ref and dedupe by id.
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-    try {
-      const raw = localStorage.getItem(ONLINE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as Playlist[];
-      if (!Array.isArray(saved)) return;
-      const online = saved.filter((p) => p.kind === "netease" && Array.isArray(p.tracks));
-      // Dedupe within the saved set (a corrupted run may have persisted duplicates) and against current state.
-      const seen = new Set<string>();
-      const deduped = online.filter((p) => {
-        if (seen.has(p.id)) return false;
-        seen.add(p.id);
-        return true;
-      });
-      if (deduped.length) {
-        setPlaylists((pls) => {
-          const existing = new Set(pls.map((p) => p.id));
-          return [...pls, ...deduped.filter((p) => !existing.has(p.id))];
-        });
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // Persist online playlists (defer with a timeout so a burst of edits coalesces).
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      saveTimer.current = null;
+    let active = true;
+    void removeFiles([]).catch(() => { if (active) setStorageError(true); });
+    const local = initialLibrary.playlists.flatMap(p => p.tracks).filter(t => t.source === "local");
+    if (!local.length) return;
+    void (async () => {
       try {
-        const online = stateRef.current.playlists.filter((p) => p.kind === "netease");
-        localStorage.setItem(ONLINE_KEY, JSON.stringify(online));
-      } catch {}
-    }, 400);
-  }, [playlists]);
+        const files = await restoreFiles(local.map(t => t.id));
+        if (!active) return;
+        if (files.size < new Set(local.map(t => t.id)).size) setStorageError(true);
+        setPlaylists(pls => pls.map(p => ({ ...p, tracks: p.tracks.map(t => files.has(t.id) ? { ...t, file: files.get(t.id)! } : t) })));
+        const restored = local.filter(t => files.has(t.id)).map(t => ({ ...t, file: files.get(t.id)! }));
+        await parseAll(restored, (id, patch) => {
+          if (!active) { if (patch.coverUrl?.startsWith("blob:")) URL.revokeObjectURL(patch.coverUrl); return; }
+          if (!stateRef.current.playlists.some(p => p.tracks.some(t => t.id === id))) {
+            if (patch.coverUrl?.startsWith("blob:")) URL.revokeObjectURL(patch.coverUrl);
+            return;
+          }
+          setPlaylists(pls => pls.map(p => ({ ...p, tracks: p.tracks.map(t => t.id === id ? { ...t, ...patch } : t) })));
+        });
+      } catch { if (active) setStorageError(true); }
+    })();
+    return () => { active = false; };
+  }, [initialLibrary]);
+
+  useEffect(() => {
+    const persist = () => {
+      try { saveLibrary(stateRef.current); }
+      catch { setStorageError(true); }
+    };
+    persist();
+    window.addEventListener("pagehide", persist);
+    return () => window.removeEventListener("pagehide", persist);
+  }, [playlists, viewPlaylistId, queuePlaylistId, currentId]);
 
   useEffect(() => {
     saveConfig(netease);
@@ -156,11 +153,11 @@ export function usePlayer() {
     localStorage.setItem(LS.eq, JSON.stringify(eq));
   }, [eq, applyEqToEngine]);
 
-  const persistStats = useCallback((s: StatsData) => {
+  const persistStats = useCallback((_s: StatsData) => {
     if (saveTimer.current) return;
     saveTimer.current = window.setTimeout(() => {
       saveTimer.current = null;
-      saveStats(s);
+      saveStats(statsRef.current);
     }, 4000);
   }, []);
 
@@ -169,6 +166,10 @@ export function usePlayer() {
       const seq = ++loadSeqRef.current;
       engine.ensureContext();
       // Immediately reflect the selection in the UI so a click always gives feedback.
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      setResolving(false);
       setCurrentId(track.id);
       setCurrentTime(0);
       setDuration(track.duration ?? 0);
@@ -187,16 +188,19 @@ export function usePlayer() {
           const map = await songUrls(netease, [track.neteaseId]);
           url = map.get(track.neteaseId) ?? null;
         } catch {
-          url = null;
+          if (seq !== loadSeqRef.current) return;
+          setResolving(false);
+          setTrackError({ kind: "service", title: track.title ?? track.fileName });
+          return;
         }
-        setResolving(false);
         // A newer load superseded this one while the URL was being fetched.
         if (seq !== loadSeqRef.current) return;
+        setResolving(false);
         if (!url) {
           deadStreakRef.current += 1;
           const qid = stateRef.current.queuePlaylistId;
           const queueLen = stateRef.current.playlists.find((p) => p.id === qid)?.tracks.length ?? 0;
-          setTrackError(track.title ?? track.fileName);
+          setTrackError({ kind: "unavailable", title: track.title ?? track.fileName });
           if (deadStreakRef.current >= Math.max(1, queueLen)) {
             // The whole queue has no playable URLs — stop rather than loop forever.
             setPlaying(false);
@@ -210,6 +214,7 @@ export function usePlayer() {
         deadStreakRef.current = 0;
         src = applyAudioProxy(netease, url);
       } else {
+        if (track.source === "local") setStorageError(true);
         return;
       }
 
@@ -217,9 +222,12 @@ export function usePlayer() {
       // play count
       const key = trackKey(track.title ?? "Unknown", track.artist ?? "Unknown", track.album ?? "Unknown", track.fileName);
       const nxt = addPlay(statsRef.current, key, track.title ?? track.fileName, track.artist ?? "Unknown");
+      statsRef.current = nxt;
       setStats(nxt);
       persistStats(nxt);
-      if (autoplay) void audio.play().catch(() => {});
+      if (autoplay) void audio.play().catch(() => {
+        if (seq === loadSeqRef.current) setTrackError({ kind: "playback", title: track.title ?? track.fileName });
+      });
     },
     [audio, engine, netease, persistStats],
   );
@@ -343,6 +351,13 @@ export function usePlayer() {
         setPlaying(false);
       }
     };
+    const onError = () => {
+      if (!audio.error) return;
+      const tr = stateRef.current.playlists.flatMap(p => p.tracks).find(t => t.id === stateRef.current.currentId);
+      setPlaying(false);
+      if (tr) setTrackError({ kind: "playback", title: tr.title ?? tr.fileName });
+    };
+    audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("timeupdate", onTime);
@@ -353,6 +368,7 @@ export function usePlayer() {
     window.addEventListener("beforeunload", flush);
     document.addEventListener("visibilitychange", flush);
     return () => {
+      audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("timeupdate", onTime);
@@ -387,7 +403,7 @@ export function usePlayer() {
     engine.ensureContext();
     if (!audio.src) {
       const list = stateRef.current.playlists.find((p) => p.id === (stateRef.current.queuePlaylistId ?? viewPlaylistId));
-      const first = list?.tracks[0];
+      const first = list?.tracks.find(t => t.id === stateRef.current.currentId) ?? list?.tracks[0];
       if (first && list) {
         setQueuePlaylistId(list.id);
         historyRef.current.push(first.id);
@@ -462,6 +478,8 @@ export function usePlayer() {
         return pa.localeCompare(pb, undefined, { numeric: true, sensitivity: "base" });
       });
       const tracks = files.map(createTrack);
+      setLoadingCount((c) => c + tracks.length);
+      try { await storeFiles(tracks); } catch { setStorageError(true); }
       const folder = opts.asTemp ? null : opts.folderName ?? folderNameFromFiles(files);
 
       const TEMP_ID = "temp";
@@ -479,7 +497,6 @@ export function usePlayer() {
         return [...pls, pl];
       });
       setViewPlaylistId(targetId);
-      setLoadingCount((c) => c + tracks.length);
       await parseAll(tracks, (id, patch) => {
         patchTrack(id, patch);
         setLoadingCount((c) => Math.max(0, c - 1));
@@ -542,12 +559,17 @@ export function usePlayer() {
 
   const removePlaylist = useCallback(
     (id: string) => {
+      const removed = stateRef.current.playlists.find(p => p.id === id)?.tracks.filter(t => t.source === "local").map(t => t.id) ?? [];
+      void removeFiles(removed).catch(() => setStorageError(true));
       setPlaylists((pls) => {
         const pl = pls.find((p) => p.id === id);
         pl?.tracks.forEach((t) => t.coverUrl?.startsWith("blob:") && URL.revokeObjectURL(t.coverUrl));
         return pls.filter((p) => p.id !== id);
       });
       if (stateRef.current.queuePlaylistId === id) {
+        loadSeqRef.current += 1;
+        setResolving(false);
+        setTrackError(null);
         audio.pause();
         audio.removeAttribute("src");
         audio.load();
@@ -563,9 +585,17 @@ export function usePlayer() {
 
   const removeTrack = useCallback(
     (playlistId: string, trackId: string) => {
+      void removeFiles([trackId]).catch(() => setStorageError(true));
       if (stateRef.current.currentId === trackId) {
-        next();
-        if (stateRef.current.playlists.find((p) => p.id === playlistId)?.tracks.length === 1) {
+        const remaining = stateRef.current.playlists.find(p => p.id === playlistId)?.tracks.filter(t => t.id !== trackId) ?? [];
+        if (remaining.length) {
+          void loadTrack(remaining[0]);
+        } else {
+          loadSeqRef.current += 1;
+          setResolving(false);
+          setTrackError(null);
+          setCurrentTime(0);
+          setDuration(0);
           audio.pause();
           audio.removeAttribute("src");
           audio.load();
@@ -581,11 +611,12 @@ export function usePlayer() {
         }),
       );
     },
-    [audio, next],
+    [audio, loadTrack],
   );
 
   const clearStats = useCallback(() => {
     const e = emptyStats();
+    statsRef.current = e;
     setStats(e);
     saveStats(e);
     setSessionMs(0);
@@ -641,6 +672,7 @@ export function usePlayer() {
     loadingCount,
     resolving,
     trackError,
+    storageError,
     netease,
     toggle,
     seek,

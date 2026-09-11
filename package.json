@@ -1,5 +1,5 @@
 {
-  "name": "lumen",
+  "name": "lumen-vercel",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,7 +17,13 @@
     "pack:win": "npm run build && electron-builder --win --dir --x64",
     "test:server": "node --test tests/server.test.cjs",
     "test:desktop": "node tools/desktop-check.mjs",
-    "build:linux": "node tools/package-linux.mjs"
+    "build:linux": "node tools/package-linux.mjs",
+    "build:vercel": "npm run typecheck && vite build --mode vercel && node tools/vercel-build-check.mjs",
+    "test:vercel": "node --test tests/vercel.test.cjs tests/xeapi-key.test.cjs",
+    "test:vercel:bundle": "node tools/vercel-bundle-check.mjs",
+    "test:vercel:browser": "node tools/vercel-browser-check.mjs",
+    "test:login": "node --test tests/qr-login.test.cjs && node tools/login-check.mjs",
+    "test:library": "node tools/library-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
@@ -34,6 +40,7 @@
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "@vercel/node": "12.0.1",
     "@vitejs/plugin-react": "5.1.1",
     "electron": "44.2.0",
     "electron-builder": "26.15.3",
@@ -47,7 +54,7 @@
   "author": "Lumen",
   "main": "desktop/main.cjs",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "24.x"
   },
   "build": {
     "appId": "app.lumen.player",

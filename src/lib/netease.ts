@@ -80,14 +80,15 @@ async function call<T = ApiEnvelope>(cfg: NeteaseConfig, path: string, params: R
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
+    signal: AbortSignal.timeout(25000),
   });
   if (!res.ok) throw new Error(`netEase API ${path} -> HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
-function assertOk(j: ApiEnvelope): void {
-  if (j.code !== 200) {
-    throw new Error(`netEase API error: code ${j.code}${j.msg ?? j.message ? ` (${j.msg ?? j.message})` : ""}`);
+function assertOk(j: ApiEnvelope | undefined): void {
+  if (!j || j.code !== 200) {
+    throw new Error(`netEase API error: code ${j?.code ?? "missing"}`);
   }
 }
 
@@ -144,7 +145,8 @@ export async function songUrls(cfg: NeteaseConfig, ids: number[]): Promise<Map<n
   });
   assertOk(j);
   const out = new Map<number, string | null>();
-  for (const d of j.data ?? []) {
+  if (!Array.isArray(j.data)) throw new Error("Invalid audio response");
+  for (const d of j.data) {
     // The upstream API often returns HTTP CDN URLs; HTTPS keeps hosted players
     // usable behind TLS without mixed-content failures in Web Audio.
     const url = d.url?.replace(/^http:\/\//i, "https://") ?? null;
@@ -206,7 +208,8 @@ export async function loginQrKey(cfg: NeteaseConfig): Promise<string> {
 export async function loginQrImage(cfg: NeteaseConfig, key: string): Promise<{ qrurl: string; qrimg: string }> {
   const j = await call<ApiEnvelope & { data?: { qrurl?: string; qrimg?: string } }>(cfg, "/login/qr/create", { key, qrimg: true });
   assertOk(j);
-  return { qrurl: j.data?.qrurl ?? "", qrimg: j.data?.qrimg ?? "" };
+  if (!j.data?.qrimg) throw new Error("Missing QR image");
+  return { qrurl: j.data?.qrurl ?? "", qrimg: j.data.qrimg };
 }
 
 export type LoginQrState =
@@ -219,16 +222,19 @@ export async function loginQrCheck(cfg: NeteaseConfig, key: string): Promise<Log
   const j = await call<ApiEnvelope & { cookie?: string; profile?: { nickname?: string } }>(cfg, "/login/qr/check", { key });
   const code = j.code;
   if (code === 803) {
-    const cookie = j.cookie ?? "";
+    const cookie = typeof j.cookie === "string" && j.cookie.length > 0 ? j.cookie : "";
+    if (!cookie.trim()) throw new Error("Missing login credential");
     return { state: "success", cookie, nickname: j.profile?.nickname ?? "" };
   }
   if (code === 802) return { state: "scanned" };
   if (code === 800) return { state: "expired" };
-  return { state: "waiting" };
+  if (code === 801) return { state: "waiting" };
+  throw new Error("Invalid QR response");
 }
 
 export async function loginStatus(cfg: NeteaseConfig): Promise<{ nickname: string | null; uid: number | null }> {
   const j = await call<ApiEnvelope & { data?: { profile?: { nickname?: string; userId?: number } } }>(cfg, "/login/status", {});
+  assertOk(j.data);
   const profile = j.data?.profile;
   return { nickname: profile?.nickname ?? null, uid: profile?.userId ?? null };
 }

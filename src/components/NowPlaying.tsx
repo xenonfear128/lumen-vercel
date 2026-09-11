@@ -89,9 +89,10 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
             {t.resolving}
           </div>
         )}
+        {player.storageError && <div role="alert" className="mt-2 text-[12px] text-muted">{t.libraryStorageError}</div>}
         {player.trackError && (
           <div className="mt-2 text-[12px] text-muted [overflow-wrap:anywhere]">
-            {t.trackUnavailable}: {player.trackError}
+            {player.trackError.kind === "service" ? t.trackServiceError : player.trackError.kind === "playback" ? t.trackPlaybackError : t.trackUnavailable}: {player.trackError.title}
           </div>
         )}
         {chips.length > 0 && (

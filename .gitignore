@@ -1,8 +1,13 @@
 node_modules/
 dist/
+dist-vercel/
+.vercel/
+.env.*.local
 release/
 .tools/
 test-results/
 .env
 debug.log
 *.log
+.vercel
+.env*

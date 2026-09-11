@@ -65,8 +65,8 @@ export function StatsPanel({ player }: { player: Player }) {
       {empty ? (
         <p className="text-center text-[13px] text-muted">{t.nothingYet}</p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+        <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="min-w-0">
             <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{t.topTracks}</div>
             <ol className="space-y-1.5">
               {topTracks.map((tr, i) => (
@@ -76,7 +76,7 @@ export function StatsPanel({ player }: { player: Player }) {
                     <div className="truncate font-medium">{tr.title}</div>
                     <div className="truncate text-[11.5px] text-muted">{tr.artist}</div>
                   </div>
-                  <div className="text-right">
+                  <div className="max-w-[45%] shrink-0 text-right [overflow-wrap:anywhere]">
                     <div className="font-mono text-[11.5px] tnum">{fmtDurationLong(tr.ms, u)}</div>
                     <div className="text-[10.5px] text-muted tnum">
                       {tr.plays} {t.plays.toLowerCase()}
@@ -86,7 +86,7 @@ export function StatsPanel({ player }: { player: Player }) {
               ))}
             </ol>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{t.topArtists}</div>
             <ol className="space-y-2">
               {topArtists.map(([name, ms], i) => {
@@ -98,7 +98,7 @@ export function StatsPanel({ player }: { player: Player }) {
                         <span className="w-4 font-mono text-[11px] text-muted tnum">{i + 1}</span>
                         <span className="truncate font-medium">{name}</span>
                       </span>
-                      <span className="font-mono text-[11.5px] tnum text-muted">{fmtDurationLong(ms, u)}</span>
+                      <span className="max-w-[45%] shrink-0 font-mono text-[11.5px] tnum text-muted [overflow-wrap:anywhere]">{fmtDurationLong(ms, u)}</span>
                     </div>
                     <div className="mt-1 ml-7 h-1 rounded-full bg-line">
                       <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-700" style={{ width: `${pct}%` }} />

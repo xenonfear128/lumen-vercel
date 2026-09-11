@@ -20,7 +20,7 @@ const track = { id: 'layout-track', source: 'netease', file: null, neteaseId: 1,
   title: long, artist: long, album: long, year: 2026, genre: long, duration: 360, codec: 'FLAC',
   bitrate: 1411200, sampleRate: 44100, coverUrl: null, fallbackCover: 0, metaLoaded: true };
 const fixtures = {
-  'lumen.online.v1': [{ id: 'layout-playlist', kind: 'netease', name: long, neteaseId: 1, tracks: [track] }],
+  'lumen.library.v1': { playlists: [{ id: 'layout-playlist', kind: 'netease', name: long, neteaseId: 1, tracks: [track] }] },
   'lumen.stats.v1': { totalMs: 360000000000, days: {}, tracks: {
     fixture: { key: 'fixture', title: long, artist: long, ms: 360000000000, plays: 123456789, lastPlayed: Date.now() },
   }, artists: { [long]: 360000000000 } },
@@ -99,7 +99,7 @@ try {
       await page.route('**/api/**',route=>{
         const path=new URL(route.request().url()).pathname.slice(4);
         const json = path==='/cloudsearch' ? {code:200,result:{songs:[song,{...song,id:2}],songCount:2}}
-          : path==='/login/status' ? {code:200,data:{profile:{nickname:long,userId:1}}}
+          : path==='/login/status' ? {code:200,data:{code:200,profile:{nickname:long,userId:1}}}
           : {code:200,data:[]};
         return route.fulfill({json});
       });
@@ -136,7 +136,7 @@ try {
       await tabs.nth(2).click(); await check(page,`${prefix} online account`);
       await closeModal(page);
 
-      await page.evaluate(fixtures=>{for(const [key,value] of Object.entries(fixtures))localStorage.setItem(key,JSON.stringify(value));},fixtures);
+      await page.addInitScript(fixtures=>{for(const [key,value] of Object.entries(fixtures))localStorage.setItem(key,JSON.stringify(value));},fixtures);
       await page.reload();
       await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important}button{transform:none!important}'});
       await showSidebar(page);

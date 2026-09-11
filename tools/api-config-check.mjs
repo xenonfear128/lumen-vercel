@@ -27,7 +27,7 @@ try {
           requests.push(route.request());
           await route.fulfill({json:route.request().url().endsWith('/api/song/url/v1')
             ? {code:200,data:[{id:1,url:'http://m702.music.126.net/fixture.mp3'}]}
-            : {code:200,data:{profile:null},result:{songs:[]}}});
+            : {code:200,data:{code:200,profile:null},result:{songs:[]}}});
         });
         let legacyRequests=0;
         await page.route('https://legacy.invalid:4321/**',route=>{legacyRequests++;return route.abort();});

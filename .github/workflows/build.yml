@@ -2,9 +2,25 @@ name: Build Lumen
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, vercel]
   pull_request:
 jobs:
+  vercel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build:vercel
+      - run: npm run test:vercel
+      - run: npm run test:vercel:bundle
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:vercel:browser
+      - run: npm run test:login
+      - run: npm run test:library
   windows:
     runs-on: windows-latest
     steps:
@@ -34,6 +50,9 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run typecheck && npm run build && npm run test:server
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:login
+      - run: npm run test:library
       - run: docker compose up -d --build --wait --wait-timeout 180
       - run: curl --fail http://127.0.0.1:8080/healthz && curl --fail http://127.0.0.1:8080/ -o /tmp/lumen.html
       - run: docker compose down
