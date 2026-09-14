@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-09-14：网站账号、管理员公共音源和云同步已在根项目及 Vercel 子工作区实现并完成下述本地验证；本轮未提交、推送或部署。此前生产部署与发行包均不包含本轮功能。真实 PostgreSQL 连接池、Linux 数据卷恢复及真人扫码会员播放仍待部署环境验收。详细实现与验证见文末“网站账号、公共音源与云同步”。
+2026-09-14：v0.2.0 网站账号、公共音源和云同步已推送根项目及 Vercel 两个 GitHub 仓库，生产部署已更新至 https://lumen.rupa.best ，后端函数固定新加坡 sin1。线上三语言、搜索、本地播放与匿名播放拒绝检查通过；Linux 数据卷重启恢复已由 GitHub CI 验证。生产环境尚未设置数据库、音源加密密钥和初始化口令，账号/在线播放/云同步保持关闭。真实托管数据库连接与真人扫码会员播放仍待配置后验收。最新发布证据见文末。
 
 ## 工作区与部署
 
@@ -201,3 +201,11 @@
 - 用户随后明确指定后续数据库在新加坡，因此 Vercel 函数区域从东京 hnd1 改为新加坡 sin1；共享部署说明同步到两仓库。
 - GitHub Vercel 作业首次运行到 test:managed 失败。检查发现它只构建 dist-vercel，却先调用依赖根 dist 的默认 HTTP fixture；删除该重复步骤，保留 LUMEN_TEST_VERCEL=1 的真实 Vercel handler 测试。Linux 作业继续负责根服务测试。
 - GitHub CLI 未登录，自动审批禁止从 Git credential helper 读取凭据用于 API；已停止该路径。CI 状态改由公开 GitHub API 查询，推送继续使用既有 Git 身份。
+
+## 2026-09-14 v0.2.0 新加坡生产部署完成
+
+- 正式地址：https://lumen.rupa.best 。最终部署 dpl_EzX24tLYwheVX7Ti99zUM73uL2Vs，状态 Ready，Vercel inspect 明确显示 api/gateway [sin1]。云端构建在 iad1 不影响函数执行区域；运行区域以函数构建详情为准。
+- 发布源码：根功能提交 3b6c8be，Vercel 新加坡配置/CI 修正提交 460c3cc。两仓库 main 已推送，v0.2.0 源码标签包含本次功能与发布文档；未生成 Windows 安装包。
+- 正式域名版本接口返回 0.2.0，/admin 返回应用页面。迁移后线上真实搜索、歌曲信息、QR 生成、匿名播放拒绝、请求来源隔离和中英日浏览器本地 WAV/CSP 检查通过。
+- Linux 数据卷测试已在 GitHub 两仓库执行并通过：root run 34858520433、Vercel repo run 34858540219 的 linux 作业，涵盖显式迁移、数据库/应用重启及会话和歌单恢复。新加坡配置提交后的 Vercel 作业 run 34859191412 也已通过。全程未调用本地 Docker。
+- 后续待部署者配置新加坡 PostgreSQL、LUMEN_CREDENTIAL_KEY、LUMEN_SETUP_TOKEN 并显式执行迁移，再部署启用账号功能。未读取或录入真人公共音源凭据，会员歌曲仍须实际管理员扫码验收。
