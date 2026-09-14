@@ -13,10 +13,19 @@ import { usePlayer } from "./hooks/usePlayer";
 import { I18nContext, LANGS, detectLang, getDict, type Lang } from "./i18n";
 import { filesFromDataTransfer } from "./lib/metadata";
 import { cn } from "./utils/cn";
+import { useSite } from './hooks/useSite';
+import { SiteAccount } from './components/SiteAccount';
+import { AdminPanel } from './components/AdminPanel';
+import { siteText } from './siteI18n';
+import { loadLibrary } from './lib/libraryStorage';
+import { loadStats } from './lib/stats';
+import { profileKey } from './lib/profile';
 
 type MobileTab = "library" | "player" | "queue";
 
 export default function App() {
+  const site = useSite();
+  const isAdmin = window.location.pathname.replace(/\/$/, '') === '/admin';
   const [lang, setLangState] = useState<Lang>(detectLang);
   const [dark, setDark] = useState<boolean>(() => document.documentElement.classList.contains("dark"));
   const [eqOpen, setEqOpen] = useState(false);
@@ -24,7 +33,8 @@ export default function App() {
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [tab, setTab] = useState<MobileTab>("player");
-  const player = usePlayer();
+  const player = usePlayer(site.user?.id || 'guest');
+  const [accountOpen, setAccountOpen] = useState(() => !!site.user && !isAdmin && !localStorage.getItem(profileKey('lumen.import.v1', site.user.id)) && (loadLibrary().playlists.length > 0 || loadStats().totalMs > 0));
 
   const t = useMemo(() => getDict(lang), [lang]);
   const setLang = useCallback((l: Lang) => {
@@ -103,7 +113,9 @@ export default function App() {
           <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg)]/40 via-transparent to-[var(--bg)]/70" />
         </div>
 
-        <TopBar dark={dark} onToggleTheme={() => setDark((d) => !d)} />
+        <TopBar dark={dark} onToggleTheme={() => setDark((d) => !d)} onOpenAccount={() => setAccountOpen(true)} syncStatus={site.user ? player.syncStatus : undefined} />
+
+        {isAdmin ? <AdminPanel /> : <>
 
         <div className="flex min-h-0 flex-1 gap-5 px-3 pb-3 sm:px-5 sm:pb-5 lg:px-7 lg:pb-7">
           {/* Sidebar (desktop) */}
@@ -189,6 +201,8 @@ export default function App() {
         <Modal open={onlineOpen} onClose={() => setOnlineOpen(false)} title={t.onlineMusic} width="max-w-2xl">
           <OnlinePanel player={player} onClose={() => setOnlineOpen(false)} />
         </Modal>
+        </>}
+        <Modal open={accountOpen} onClose={() => setAccountOpen(false)} title={siteText(lang, 'account')} width="max-w-lg"><SiteAccount player={player} /></Modal>
 
       </div>
     </I18nContext.Provider>

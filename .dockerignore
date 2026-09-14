@@ -5,4 +5,7 @@ release
 test-results
 .git
 .env
+.env.*
+workspaces
+dist-vercel
 *.log

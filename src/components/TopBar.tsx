@@ -3,8 +3,12 @@ import { LANGS, useI18n } from "../i18n";
 import { IconButton } from "./Button";
 import { Moon, Sun } from "./Icons";
 import { cn } from "../utils/cn";
+import { useSite } from '../hooks/useSite';
+import { useSiteText } from '../siteI18n';
+import type { SyncStatus } from '../lib/cloudSync';
 
-export function TopBar({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => void }) {
+export function TopBar({ dark, onToggleTheme, onOpenAccount, syncStatus }: { dark: boolean; onToggleTheme: () => void; onOpenAccount: () => void; syncStatus?: SyncStatus }) {
+  const site = useSite(), st = useSiteText();
   const { t, lang, setLang } = useI18n();
   const langIndex = Math.max(0, LANGS.findIndex((l) => l.code === lang));
   const indicatorInset = 0.25 - langIndex * 0.125;
@@ -19,6 +23,10 @@ export function TopBar({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: 
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <button type="button" className="site-account-button glass" onClick={onOpenAccount} aria-label={st('account')}>
+          <span className="truncate">{site.user?.username || st('login')}</span>
+          {syncStatus && <span className="site-sync" aria-label={st(syncStatus)} title={st(syncStatus)}>{syncStatus === 'synced' ? '✓' : syncStatus === 'retry' ? '!' : '…'}</span>}
+        </button>
         <div className="lang-switcher glass" role="radiogroup" aria-label={t.language}>
           <span
             aria-hidden="true"

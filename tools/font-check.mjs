@@ -23,6 +23,7 @@ try {
     await context.addInitScript((value) => localStorage.setItem("lumen.lang", value), lang);
     const page = await context.newPage();
     await page.goto(server.resolvedUrls.local[0], { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.locator('.lang-switcher-indicator').waitFor();
     const result = await page.evaluate(async () => {
       await document.fonts.ready;
       const root = document.documentElement;

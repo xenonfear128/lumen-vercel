@@ -20,8 +20,10 @@ export function stripExt(name: string): string {
 
 export function createTrack(file: File): Track {
   const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+  const id = makeId();
   return {
-    id: makeId(),
+    id,
+    localFileId: id,
     source: "local",
     file,
     neteaseId: null,

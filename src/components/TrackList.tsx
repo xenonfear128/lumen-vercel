@@ -8,9 +8,11 @@ import { Cover } from "./Cover";
 import { IconButton } from "./Button";
 import { Search, Trash, X, Play } from "./Icons";
 import { cn } from "../utils/cn";
+import { useSiteText } from '../siteI18n';
 
 export function TrackList({ player, className }: { player: Player; className?: string }) {
   const { t } = useI18n();
+  const st = useSiteText();
   const [q, setQ] = useState("");
   const pl = player.viewPlaylist;
   const listRef = useRef<HTMLDivElement>(null);
@@ -113,6 +115,10 @@ export function TrackList({ player, className }: { player: Player; className?: s
                     </button>
                   </div>
                   <div className="min-w-0 flex-1">
+                    {tr.source === 'local' && !tr.file && <label className="site-file-link" onClick={e => e.stopPropagation()}>
+                      <span>{st('missing')} · {st('attach')}</span>
+                      <input type="file" accept="audio/*" aria-label={st('attach')} onChange={e => { const file = e.target.files?.[0]; if (file) void player.attachLocalFile(tr.id, file).catch(() => {}); e.target.value = ''; }} />
+                    </label>}
                     <div {...metadataTypography(tr.title ?? stripExt(tr.fileName))} className={cn("truncate text-[13.5px]", isCurrent ? "font-semibold" : "font-medium")}>
                       {tr.title ?? stripExt(tr.fileName)}
                     </div>

@@ -1,3 +1,4 @@
+import { profileKey } from './profile';
 export interface TrackStat {
   key: string;
   title: string;
@@ -20,9 +21,9 @@ export function emptyStats(): StatsData {
   return { totalMs: 0, days: {}, tracks: {}, artists: {} };
 }
 
-export function loadStats(): StatsData {
+export function loadStats(scope = 'guest'): StatsData {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(profileKey(KEY, scope));
     if (!raw) return emptyStats();
     const parsed = JSON.parse(raw) as StatsData;
     return { ...emptyStats(), ...parsed };
@@ -31,9 +32,9 @@ export function loadStats(): StatsData {
   }
 }
 
-export function saveStats(s: StatsData) {
+export function saveStats(s: StatsData, scope = 'guest') {
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(profileKey(KEY, scope), JSON.stringify(s));
   } catch {}
 }
 

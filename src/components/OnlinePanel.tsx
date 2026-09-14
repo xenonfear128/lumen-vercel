@@ -25,6 +25,7 @@ import {
 } from "../lib/netease";
 import type { Track } from "../lib/types";
 import { fmtTime } from "../lib/format";
+import { useSiteText } from '../siteI18n';
 
 type Tab = "search" | "import" | "account";
 
@@ -32,6 +33,7 @@ const PAGE = 30;
 
 export function OnlinePanel({ player, onClose }: { player: Player; onClose: () => void }) {
   const { t } = useI18n();
+  const st = useSiteText();
   const [tab, setTab] = useState<Tab>("search");
   const cfg = player.netease;
 
@@ -221,8 +223,8 @@ export function OnlinePanel({ player, onClose }: { player: Player; onClose: () =
   const playNow = useCallback(
     async (songs: NeteaseSong[]) => {
       const tracks = songs.map(songToTrack);
-      player.addNeteaseSongsToTemp(tracks);
-      player.playOnlineTrack(tracks[0], "temp");
+      const playlistId = player.addNeteaseSongsToTemp(tracks);
+      player.playOnlineTrack(tracks[0], playlistId);
       onClose();
     },
     [player, onClose],
@@ -457,6 +459,7 @@ export function OnlinePanel({ player, onClose }: { player: Player; onClose: () =
       {/* ---- Account / Settings ---- */}
       {tab === "account" && (
         <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted">{st('personal')}</p>
           <div>
             <label className="flex flex-col gap-1.5">
               <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{t.audioProxy}</span>

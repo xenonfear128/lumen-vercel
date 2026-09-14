@@ -119,6 +119,12 @@ export class AudioEngine {
     return this.ctx;
   }
 
+  destroy() {
+    this.audio.pause(); this.audio.removeAttribute('src'); this.audio.load();
+    if (this.ctx) void this.ctx.close().catch(() => {});
+    this.ctx = null; this.source = null; this.preamp = null; this.filters = []; this.analyser = null;
+  }
+
   setEnabled(v: boolean) {
     this.enabled = v;
     this.applyGains();

@@ -22,27 +22,11 @@ jobs:
       - run: npm run test:vercel:browser
       - run: npm run test:login
       - run: npm run test:library
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run desktop:setup
-      - run: npm run typecheck
-      - run: npm run build
-      - run: npx playwright install chromium
-      - run: npm run test:fonts
-      - run: npm run test:server
-      - run: npm run test:desktop
-      - run: npm run build:win
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Lumen-Windows
-          path: release/*Setup.exe
+      - run: npm run test:managed
+      - run: npm run test:managed
+        env:
+          LUMEN_TEST_VERCEL: '1'
+      - run: npm run test:cloud
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -57,10 +41,8 @@ jobs:
       - run: npm run test:fonts
       - run: npm run test:login
       - run: npm run test:library
-      - run: docker compose up -d --build --wait --wait-timeout 180
-      - run: curl --fail http://127.0.0.1:8080/healthz && curl --fail http://127.0.0.1:8080/ -o /tmp/lumen.html
-      - run: docker compose down
-        if: always()
+      - run: npm run test:managed && npm run test:cloud && npm run test:site
+      - run: npm run test:linux
       - run: npm run build:linux
       - uses: actions/upload-artifact@v4
         with:

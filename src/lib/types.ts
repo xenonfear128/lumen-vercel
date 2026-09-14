@@ -2,6 +2,8 @@ export type TrackSource = "local" | "netease";
 
 export interface Track {
   id: string;
+  /** Stable device-file reference, independent of this playlist entry. */
+  localFileId?: string | null;
   source: TrackSource;
   file: File | null;
   neteaseId: number | null;

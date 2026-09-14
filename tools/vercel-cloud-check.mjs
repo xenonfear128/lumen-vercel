@@ -26,11 +26,15 @@ const search = await api('/api/cloudsearch', { keywords: '纯音乐', limit: '3'
 assert(search.result.songs.length > 0, 'Real search must return songs');
 const ids = search.result.songs.map(song => song.id).join(',');
 assert((await api('/api/song/detail', { ids })).songs.length > 0);
-const urls = await api('/api/song/url/v1', { id: ids, level: 'standard' });
-assert.equal(urls.code, 200);
-assert(urls.data.some(song => typeof song.url === 'string'), 'At least one sample must have a playable URL');
-const playableId = urls.data.find(song => typeof song.url === 'string').id;
-const playableSong = search.result.songs.find(song => song.id === playableId);
+const session = await api('/api/auth/session');
+assert.equal(session.user, null);
+const playback = await fetch(base + '/api/song/url/v1', {
+  method: 'POST', headers: accessHeaders,
+  body: new URLSearchParams({ id: String(search.result.songs[0].id), level: 'standard' }),
+  signal: AbortSignal.timeout(40000),
+});
+assert.equal(playback.status, session.configured ? 401 : 503);
+assert.equal((await playback.json()).error, session.configured ? 'AUTH_REQUIRED' : 'DATABASE_UNAVAILABLE');
 const key = await api('/api/login/qr/key', {});
 assert.equal(typeof key.data.unikey, 'string');
 const qr = await api('/api/login/qr/create', { key: key.data.unikey, qrimg: '1' });
@@ -42,7 +46,7 @@ const denied = await fetch(`${base}/api/logout`, {
   method: 'POST', headers: { ...accessHeaders, Origin: 'https://unrelated.example' }, body: new URLSearchParams(),
 });
 assert.equal(denied.status, 403);
-console.log('PASS cloud API: search, details, playable URLs, QR key/image, login status and request isolation');
+console.log(`PASS cloud API: search, details, anonymous playback denied, QR, request isolation; accounts configured=${session.configured}`);
 
 const browser = await chromium.launch({ headless: true });
 try {
@@ -75,13 +79,6 @@ try {
     await dialog.getByText(results.result.songs[0].name, { exact: true }).first().waitFor();
     await dialog.locator('.w-fit').first().getByRole('button').nth(2).click();
     assert.equal(await dialog.locator('input').count(), 1, 'Only the optional audio proxy remains visible');
-    if (lang === 'zh') {
-      await dialog.locator('.w-fit').first().getByRole('button').first().click();
-      await dialog.locator('.group.grid').filter({ has: page.getByText(playableSong.name, { exact: true }) }).first().locator('button').last().click();
-      await page.waitForFunction(() => window.__lumenMedia?.currentTime > 0.2 && !window.__lumenMedia.paused, { timeout: 40000 });
-      await page.locator('.player-transport-main > button').nth(1).click();
-      console.log('PASS cloud online playback: real CDN audio advances through the player');
-    }
     await page.addInitScript(() => { localStorage.removeItem("lumen.library.v1"); localStorage.removeItem("lumen.online.v1"); });
     await page.evaluate(() => localStorage.clear());
     await page.reload();

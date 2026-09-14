@@ -1,4 +1,5 @@
 const { createApi, ROUTES } = require('./api.cjs');
+const { createManaged } = require('./managed.cjs');
 
 const BODY_LIMIT = 64 * 1024;
 
@@ -43,9 +44,10 @@ async function readForm(req) {
   return Object.fromEntries(Object.entries(body));
 }
 
-function createApiHandler({ api, apiFactory = createApi } = {}) {
+function createApiHandler({ api, apiFactory = createApi, managed } = {}) {
   // One SDK instance per warm function; user cookies remain request-local.
   let musicApi = api;
+  const accounts = managed || createManaged({ api: (path, params) => { musicApi ||= apiFactory(); return musicApi(path, params); } });
   return async (req, res) => {
     try {
       let url;
@@ -53,6 +55,7 @@ function createApiHandler({ api, apiFactory = createApi } = {}) {
       if (url.pathname === '/api/healthz' && req.method === 'GET') {
         return json(res, 200, { status: 'ok', service: 'lumen', version: require('../package.json').version });
       }
+      if (await accounts.handle(req, res, url.pathname)) return;
       const pathname = url.pathname.slice(4);
       if (!url.pathname.startsWith('/api/') || !Object.hasOwn(ROUTES, pathname)) {
         return json(res, 404, { code: 404 });
@@ -71,13 +74,14 @@ function createApiHandler({ api, apiFactory = createApi } = {}) {
       const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
       if (contentType !== 'application/x-www-form-urlencoded') fail(415);
       const params = await readForm(req);
-      musicApi ||= apiFactory();
-      const result = await musicApi(pathname, params);
+      let result;
+      if (pathname === '/song/url/v1') result = { status: 200, body: await accounts.playback(req, params) };
+      else { musicApi ||= apiFactory(); result = await musicApi(pathname, params); }
       const status = Number.isInteger(result?.status) && result.status >= 200 && result.status < 600 ? result.status : 502;
       return json(res, status, result?.body || { code: 502 });
     } catch (error) {
-      const status = [400, 403, 413, 415].includes(error.status) ? error.status : 500;
-      if (!res.headersSent) json(res, status, { code: status, msg: 'Request could not be completed' });
+      const status = [400, 401, 403, 409, 413, 415, 429, 502, 503].includes(error.status) ? error.status : 500;
+      if (!res.headersSent) json(res, status, { code: status, ...(error.status && { error: error.code }), msg: 'Request could not be completed' });
       else res.destroy();
     }
   };

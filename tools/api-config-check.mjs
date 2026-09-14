@@ -49,11 +49,13 @@ try {
         assert.equal(legacyRequests,0,'Legacy API origin must never be used');
         assert(requests.some(r=>new URL(r.url()).pathname==='/api/login/status'));
         assert(requests.some(r=>new URL(r.url()).pathname==='/api/cloudsearch'));
-        assert(requests.every(r=>r.method()==='POST' && !new URL(r.url()).searchParams.has('cookie')));
+        assert(requests.every(r=>(r.url().endsWith('/auth/session') || r.method()==='POST') && !new URL(r.url()).searchParams.has('cookie')));
         assert.deepEqual(errors,[]);
         if (!production) {
           const verified=await page.evaluate(async()=>{
             const api=await import('/src/lib/netease.ts');
+            const { setSiteSession } = await import('/src/lib/siteApi.ts');
+            setSiteSession({ configured:true, initialized:true, user:{id:'test'}, csrf:'test' });
             const cfg={...api.defaultConfig(),baseUrl:'https://legacy.invalid:4321'};
             api.saveConfig(cfg);
             await api.search(cfg,'injected config',1,0);

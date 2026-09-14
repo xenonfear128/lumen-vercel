@@ -9,9 +9,11 @@ import { Cover } from "./Cover";
 import { Next, Pause, Play, Prev, Repeat, RepeatOne, Shuffle, Volume } from "./Icons";
 import { Visualizer } from "./Visualizer";
 import { cn } from "../utils/cn";
+import { useSiteText } from '../siteI18n';
 
 export function NowPlaying({ player, dark, className }: { player: Player; dark: boolean; className?: string }) {
   const { t } = useI18n();
+  const st = useSiteText();
   const { current, playing, currentTime, duration, volume, muted } = player;
   const title = current ? current.title ?? stripExt(current.fileName) : t.noTrack;
   const artist = current ? current.artist ?? t.unknown : "";
@@ -93,7 +95,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
         {player.storageError && <div role="alert" className="mt-2 text-[12px] text-muted">{t.libraryStorageError}</div>}
         {player.trackError && (
           <div className="mt-2 text-[12px] text-muted [overflow-wrap:anywhere]">
-            {player.trackError.kind === "service" ? t.trackServiceError : player.trackError.kind === "playback" ? t.trackPlaybackError : t.trackUnavailable}: {player.trackError.title}
+            {player.trackError.code ? st(player.trackError.code === 'LOCAL_FILE_MISSING' ? 'missing' : player.trackError.code) : player.trackError.kind === "service" ? t.trackServiceError : player.trackError.kind === "playback" ? t.trackPlaybackError : t.trackUnavailable}: {player.trackError.title}
           </div>
         )}
         {chips.length > 0 && (

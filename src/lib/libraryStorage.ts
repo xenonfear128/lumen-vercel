@@ -1,4 +1,5 @@
 import type { Playlist } from './types';
+import { profileKey } from './profile';
 
 const KEY = 'lumen.library.v1';
 const LEGACY_KEY = 'lumen.online.v1';
@@ -8,16 +9,22 @@ export interface LibrarySnapshot {
   queuePlaylistId: string | null;
   currentId: string | null;
 }
-export function loadLibrary(): LibrarySnapshot {
+export function loadLibrary(scope = 'guest'): LibrarySnapshot {
   const empty: LibrarySnapshot = { playlists: [], viewPlaylistId: null, queuePlaylistId: null, currentId: null };
   try {
-    const raw = localStorage.getItem(KEY);
-    const saved = raw ? JSON.parse(raw) : { playlists: JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]') };
+    const raw = localStorage.getItem(profileKey(KEY, scope));
+    const saved = raw ? JSON.parse(raw) : { playlists: JSON.parse(localStorage.getItem(profileKey(LEGACY_KEY, scope)) || '[]') };
     const seen = new Set<string>();
     const playlists: Playlist[] = (Array.isArray(saved?.playlists) ? saved.playlists : [])
       .filter((p: Playlist) => p && typeof p.id === 'string' && typeof p.name === 'string' && ['folder', 'temp', 'netease'].includes(p.kind) && Array.isArray(p.tracks))
       .filter((p: Playlist) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
       .map((p: Playlist) => ({ ...p, tracks: p.tracks.filter(t => t && typeof t.id === 'string' && ['local', 'netease'].includes(t.source)).map(t => ({ ...t, file: null, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) }));
+    const entries = new Set<string>();
+    for (const playlist of playlists) for (const track of playlist.tracks) {
+      if (track.source === 'local') track.localFileId ||= track.id;
+      if (entries.has(track.id)) track.id = crypto.randomUUID();
+      entries.add(track.id);
+    }
     return {
       playlists,
       viewPlaylistId: playlists.some(p => p.id === saved.viewPlaylistId) ? saved.viewPlaylistId : playlists[0]?.id ?? null,
@@ -26,8 +33,8 @@ export function loadLibrary(): LibrarySnapshot {
     };
   } catch { return empty; }
 }
-export function saveLibrary(snapshot: LibrarySnapshot) {
-  localStorage.setItem(KEY, JSON.stringify({ ...snapshot, playlists: snapshot.playlists.map(p => ({ ...p, tracks: p.tracks.map(t => ({ ...t, file: null, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) })) }));
+export function saveLibrary(snapshot: LibrarySnapshot, scope = 'guest') {
+  localStorage.setItem(profileKey(KEY, scope), JSON.stringify({ ...snapshot, playlists: snapshot.playlists.map(p => ({ ...p, tracks: p.tracks.map(t => ({ ...t, file: null, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) })) }));
 }
 
 function openFiles(): Promise<IDBDatabase> {
@@ -38,7 +45,7 @@ function openFiles(): Promise<IDBDatabase> {
     request.onsuccess = () => resolve(request.result);
   });
 }
-export async function storeFiles(files: { id: string; file: File | null }[]) {
+export async function storeFiles(files: { id: string; localFileId?: string | null; file: File | null }[], scope = 'guest') {
   if (!files.some(t => t.file)) return;
   const db = await openFiles();
   try {
@@ -47,11 +54,11 @@ export async function storeFiles(files: { id: string; file: File | null }[]) {
       tx.oncomplete = () => resolve();
       tx.onabort = () => reject(tx.error);
       tx.onerror = () => reject(tx.error);
-      for (const t of files) if (t.file) tx.objectStore('files').put(t.file, t.id);
+      for (const t of files) if (t.file) tx.objectStore('files').put(t.file, profileKey(t.localFileId || t.id, scope));
     });
   } finally { db.close(); }
 }
-export async function restoreFiles(ids: string[]): Promise<Map<string, File>> {
+export async function restoreFiles(ids: string[], scope = 'guest'): Promise<Map<string, File>> {
   const files = new Map<string, File>();
   if (!ids.length) return files;
   const db = await openFiles();
@@ -62,17 +69,17 @@ export async function restoreFiles(ids: string[]): Promise<Map<string, File>> {
       tx.onabort = () => reject(tx.error);
       tx.onerror = () => reject(tx.error);
       for (const id of ids) {
-        const request = tx.objectStore('files').get(id);
+        const request = tx.objectStore('files').get(profileKey(id, scope));
         request.onsuccess = () => { if (request.result instanceof File) files.set(id, request.result); };
       }
     });
     return files;
   } finally { db.close(); }
 }
-export async function removeFiles(ids: string[]) {
+export async function removeFiles(ids: string[], scope = 'guest') {
   // Record deletions synchronously so closing the page cannot lose a pending
   // IndexedDB operation. The next page resumes cleanup before restoring audio.
-  const key = 'lumen.library.removedFiles';
+  const key = profileKey('lumen.library.removedFiles', scope);
   const pending: string[] = JSON.parse(localStorage.getItem(key) || '[]');
   const removed = [...new Set([...pending, ...ids])];
   if (!removed.length) return;
@@ -84,7 +91,7 @@ export async function removeFiles(ids: string[]) {
       tx.oncomplete = () => resolve();
       tx.onabort = () => reject(tx.error);
       tx.onerror = () => reject(tx.error);
-      for (const id of removed) tx.objectStore('files').delete(id);
+      for (const id of removed) tx.objectStore('files').delete(profileKey(id, scope));
     });
     const latest: string[] = JSON.parse(localStorage.getItem(key) || '[]');
     localStorage.setItem(key, JSON.stringify(latest.filter(id => !removed.includes(id))));

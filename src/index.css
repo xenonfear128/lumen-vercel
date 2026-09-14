@@ -495,3 +495,40 @@ body {
     transform: scaleY(1);
   }
 }
+.site-loading { display:grid; place-items:center; height:100dvh; }
+.site-stack { display:flex; flex-direction:column; gap:20px; min-width:0; }
+.admin-page { min-height:0; flex:1; overflow:auto; padding:12px 20px 40px; }
+.admin-shell { width:min(100%,960px); margin:0 auto; }
+.site-card { border:1px solid var(--line); background:var(--glass-bg, color-mix(in srgb,var(--bg) 75%,transparent)); border-radius:24px; padding:24px; font-size:14px; line-height:1.6; }
+.site-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.site-actions > .btn, .site-stack > .btn { min-height:44px; }
+.site-field { display:flex; flex-direction:column; gap:8px; font-size:14px; font-weight:500; }
+.site-field input, .site-secret { width:100%; min-width:0; min-height:44px; border:1px solid var(--line); background:var(--bg); color:var(--fg); border-radius:12px; padding:10px 12px; font-size:16px; }
+.site-field input:focus-visible, .site-secret:focus-visible, .site-account-button:focus-visible, .site-file-link:focus-within { outline:2px solid var(--fg); outline-offset:3px; }
+.site-notice { padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14px; overflow-wrap:anywhere; line-height:1.6; }
+.site-error { border-color:currentColor; }
+.site-row { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+.site-details { display:grid; gap:16px; }
+.site-details > div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; }
+.site-details dt { color:var(--muted); }
+.site-qr { display:flex; align-items:center; flex-direction:column; gap:14px; }
+.site-qr img { padding:12px; background:#fff; border-radius:16px; max-width:100%; }
+.site-link { display:inline-flex; min-height:44px; align-items:center; text-decoration:underline; text-underline-offset:4px; font-size:14px; }
+.site-account-button { display:flex; align-items:center; justify-content:center; gap:5px; max-width:140px; min-height:36px; border-radius:999px; padding:6px 12px; font-size:12px; cursor:pointer; }
+.site-sync { flex:none; }
+.site-file-link { position:relative; display:block; border:1px dashed var(--line); border-radius:6px; padding:4px 6px; font-size:11px; overflow-wrap:anywhere; cursor:pointer; }
+.site-file-link input { position:absolute; inset:0; opacity:0; width:100%; cursor:pointer; }
+@media (max-width:767px) {
+  .top-bar { gap:8px; }
+  .site-account-button { max-width:85px; padding:6px 10px; }
+  .site-card { padding:18px; }
+  .admin-page { padding:8px 12px 24px; }
+}
+@media (max-width:380px) {
+  .top-bar { padding-left:12px; padding-right:12px; }
+  .top-bar > div:first-child { gap:8px; }
+  .top-bar > div:first-child > div > div:last-child { display:none; }
+  .top-bar > div:last-child { min-width:0; max-width:100%; gap:6px; }
+  .top-bar .lang-switcher { min-width:0; flex-shrink:1; }
+  .top-bar .lang-switcher-option { padding-left:8px; padding-right:8px; }
+}

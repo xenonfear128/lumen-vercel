@@ -1,4 +1,6 @@
 import { NETEASE_API_ORIGIN } from "../config/services";
+import { profileKey } from './profile';
+import { siteSession, SiteError } from './siteApi';
 import type { Playlist, Track } from "./types";
 import { makeId, stripExt } from "./metadata";
 import { pickFallbackCover } from "./covers";
@@ -27,13 +29,13 @@ export function defaultConfig(): NeteaseConfig {
   return { level: "exhigh", cookie: null, audioProxy: null };
 }
 
-export function loadConfig(): NeteaseConfig {
+export function loadConfig(scope = 'guest'): NeteaseConfig {
   try {
-    const raw = localStorage.getItem(CFG_KEY);
+    const raw = localStorage.getItem(profileKey(CFG_KEY, scope));
     if (!raw) return defaultConfig();
     const cfg = normalizeConfig(JSON.parse(raw));
     // Remove legacy baseUrl values without discarding login or playback preferences.
-    saveConfig(cfg);
+    saveConfig(cfg, scope);
     return cfg;
   } catch {
     return defaultConfig();
@@ -51,9 +53,9 @@ function normalizeConfig(value: unknown): NeteaseConfig {
   };
 }
 
-export function saveConfig(cfg: NeteaseConfig) {
+export function saveConfig(cfg: NeteaseConfig, scope = 'guest') {
   try {
-    localStorage.setItem(CFG_KEY, JSON.stringify(normalizeConfig(cfg)));
+    localStorage.setItem(profileKey(CFG_KEY, scope), JSON.stringify(normalizeConfig(cfg)));
   } catch {}
 }
 
@@ -75,14 +77,20 @@ async function call<T = ApiEnvelope>(cfg: NeteaseConfig, path: string, params: R
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined) body.set(k, String(v));
   }
-  if (cfg.cookie) body.set("cookie", cfg.cookie);
+  const session = siteSession();
+  if (path === '/song/url/v1' && !session.user) throw new SiteError('AUTH_REQUIRED', 401);
+  if (cfg.cookie && path !== '/song/url/v1') body.set("cookie", cfg.cookie);
   const res = await fetch(`${NETEASE_API_ORIGIN}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { "Content-Type": "application/x-www-form-urlencoded", ...(session.csrf && { 'X-Lumen-CSRF': session.csrf }) },
     body,
     signal: AbortSignal.timeout(25000),
   });
-  if (!res.ok) throw new Error(`netEase API ${path} -> HTTP ${res.status}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    if (path === '/song/url/v1' && res.status === 401) window.dispatchEvent(new Event('lumen-session-expired'));
+    throw new SiteError(error.error || 'SOURCE_UNAVAILABLE', res.status);
+  }
   return (await res.json()) as T;
 }
 
@@ -259,10 +267,10 @@ export function songToTrack(s: NeteaseSong): Track {
   const title = s.name;
   const artist = s.ar.map((a) => a.name).join(", ");
   const album = s.al.name;
-  const coverUrl = s.al.picUrl ? `${s.al.picUrl}?param=512y512` : null;
+  const coverUrl = s.al.picUrl ? `${s.al.picUrl.replace(/^http:\/\//i, 'https://')}?param=512y512` : null;
   const durSec = s.dt ? s.dt / 1000 : null;
   return {
-    id: `ne_${s.id}`,
+    id: makeId(),
     source: "netease",
     file: null,
     neteaseId: s.id,
@@ -294,7 +302,7 @@ export function extractPlaylistId(input: string): number | null {
 
 export function makeNeteasePlaylist(meta: NeteasePlaylistMeta, tracks: Track[]): Playlist {
   return {
-    id: `np_${meta.id}`,
+    id: makeId(),
     name: meta.name,
     kind: "netease",
     neteaseId: meta.id,

@@ -135,12 +135,17 @@ try {
       } else await route.fulfill({ json: { code: 200, data: { code: 200, profile: null }, result: { songs: [{ id: 42, name: 'Fixture Song', ar: [], al: { name: '' }, dt: 10000 }], songCount: 1 } } });
     });
     await page.goto(server.resolvedUrls.local[0]);
+    await page.locator('.sidebar:visible').waitFor();
+    await page.evaluate(async () => {
+      const { setSiteSession } = await import('/src/lib/siteApi.ts');
+      setSiteSession({ configured: true, initialized: true, user: { id: 'test', username: 'test', role: 'user' }, csrf: 'test' });
+    });
     await page.locator('.sidebar:visible .sidebar-actions button').nth(2).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('input').fill('fixture');
     await dialog.locator('input').press('Enter');
     await dialog.locator('.group.grid').first().locator('button').last().click();
-    await page.getByText(unavailable ? '无可用音源: Fixture Song' : '获取播放地址失败，请重试: Fixture Song', { exact: true }).waitFor();
+    await page.getByText(unavailable ? '无可用音源: Fixture Song' : '音源服务暂时不可用，请稍后重试: Fixture Song', { exact: true }).waitFor();
     assert.equal(resolutions, 1, 'Errors must not cause an endless skip loop');
     await context.close();
     console.log(`PASS audio error ${unavailable ? 'unavailable' : 'service'}`);
@@ -157,6 +162,8 @@ try {
       const { default: React } = await import('/node_modules/.vite/deps/react.js');
       const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
       const { usePlayer } = await import('/src/hooks/usePlayer.ts');
+      const { setSiteSession } = await import('/src/lib/siteApi.ts');
+      setSiteSession({ configured: true, initialized: true, user: { id: 'test', username: 'test', role: 'user' }, csrf: 'test' });
       const { songToTrack } = await import('/src/lib/netease.ts');
       window.fixtureTrack = songToTrack({ id: 42, name: 'Pending', ar: [], al: { name: '' }, dt: 10000 });
       const element = document.createElement('div'); document.body.append(element);

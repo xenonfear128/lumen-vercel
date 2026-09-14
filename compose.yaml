@@ -1,7 +1,7 @@
 services:
   lumen:
     build: .
-    image: lumen:0.1.0
+    image: lumen:0.2.0
     init: true
     restart: unless-stopped
     ports:
@@ -9,6 +9,16 @@ services:
     environment:
       LUMEN_AUTH_USER: ${LUMEN_AUTH_USER:-}
       LUMEN_AUTH_PASSWORD: ${LUMEN_AUTH_PASSWORD:-}
+      DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD:?Run deploy/linux.sh start first}@postgres:5432/lumen
+      LUMEN_CREDENTIAL_KEY: ${LUMEN_CREDENTIAL_KEY:?Set the credential encryption key}
+      LUMEN_SETUP_TOKEN: ${LUMEN_SETUP_TOKEN:?Set the administrator setup token}
+      LUMEN_PLAYBACK_LIMIT: ${LUMEN_PLAYBACK_LIMIT:-30}
+      LUMEN_LOGIN_LIMIT: ${LUMEN_LOGIN_LIMIT:-20}
+      LUMEN_REGISTRATION_LIMIT: ${LUMEN_REGISTRATION_LIMIT:-5}
+      LUMEN_COOKIE_SECURE: ${LUMEN_COOKIE_SECURE:-true}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - lumen-data:/data
     read_only: true
@@ -19,5 +29,30 @@ services:
     cap_drop:
       - ALL
     stop_grace_period: 10s
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lumen
+      POSTGRES_USER: lumen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the database password}
+    volumes:
+      - lumen-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumen -d lumen"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    build: .
+    image: lumen:0.2.0
+    restart: "no"
+    command: ["node", "server/migrate.cjs"]
+    environment:
+      DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD:?Set the database password}@postgres:5432/lumen
+    depends_on:
+      postgres:
+        condition: service_healthy
 volumes:
   lumen-data:
+  lumen-postgres:
