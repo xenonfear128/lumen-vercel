@@ -2,9 +2,26 @@ name: Build Lumen
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, vercel]
   pull_request:
 jobs:
+  vercel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build:vercel
+      - run: npm run test:vercel
+      - run: npm run test:vercel:bundle
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:fonts
+      - run: npm run test:vercel:browser
+      - run: npm run test:login
+      - run: npm run test:library
   windows:
     runs-on: windows-latest
     steps:
@@ -17,6 +34,7 @@ jobs:
       - run: npm run desktop:setup
       - run: npm run typecheck
       - run: npm run build
+      - run: npx playwright install chromium
       - run: npm run test:fonts
       - run: npm run test:server
       - run: npm run test:desktop
