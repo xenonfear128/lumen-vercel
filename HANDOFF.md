@@ -194,3 +194,10 @@
 - Vercel 生产环境变量清单为空：尚未配置 PostgreSQL、凭据加密密钥和初始化口令。因此发布后账号、在线播放和云同步保持关闭；访客搜索与本地播放继续提供。不能将上线等同于完成真人会员播放验收。
 - 官方文档已核实：函数支持固定新加坡 sin1（Hobby 支持单一区域）；静态资源仍由全球 CDN 分发，数据库位置需单独设置。本次仅确认可行性，保留现有东京 hnd1。
 - Vercel 线上验证工具改为检查匿名播放被拒绝，不再以旧版匿名在线播放成功作为验收条件。
+
+## 2026-09-14 新加坡迁移与线上检查
+
+- 第一轮生产部署已就绪：dpl_9S91hSyxgtjPxWWGx1p8Kh16hyvA，lumen.rupa.best 版本接口返回 0.2.0，/admin 可访问；线上三语言搜索、本地 WAV、CSP 和匿名播放拒绝检查通过。生产数据库仍未配置。
+- 用户随后明确指定后续数据库在新加坡，因此 Vercel 函数区域从东京 hnd1 改为新加坡 sin1；共享部署说明同步到两仓库。
+- GitHub Vercel 作业首次运行到 test:managed 失败。检查发现它只构建 dist-vercel，却先调用依赖根 dist 的默认 HTTP fixture；删除该重复步骤，保留 LUMEN_TEST_VERCEL=1 的真实 Vercel handler 测试。Linux 作业继续负责根服务测试。
+- GitHub CLI 未登录，自动审批禁止从 Git credential helper 读取凭据用于 API；已停止该路径。CI 状态改由公开 GitHub API 查询，推送继续使用既有 Git 身份。

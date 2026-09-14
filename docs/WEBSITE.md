@@ -54,7 +54,7 @@
 
 ## 验证与运行边界
 
-Vercel 支持在 `vercel.json` 中使用 `"regions": ["sin1"]` 将 Node.js 函数固定在新加坡，Hobby 也支持单一区域。当前项目保留东京 `hnd1`；变更区域须重新部署。此设置不改变全球 CDN 分发，也不会迁移数据库，数据库应单独选择与函数接近的区域。官方说明：https://vercel.com/docs/functions/configuring-functions/region 、https://vercel.com/docs/regions#region-list 。
+Vercel 已配置 `"regions": ["sin1"]`，将 Node.js 函数固定在新加坡，配合部署者后续连接的新加坡数据库；Hobby 也支持单一区域。变更区域须重新部署。此设置不改变全球 CDN 分发，也不会迁移数据库，数据库应单独选择与函数接近的区域。官方说明：https://vercel.com/docs/functions/configuring-functions/region 、https://vercel.com/docs/regions#region-list 。
 
 `test:managed` 使用 PostgreSQL WASM 引擎运行真实 SQL 与事务测试；`test:cloud` 用两个独立客户端缓存验证离线合并；`test:site` 在真实浏览器操作构建页面。它们不等同于生产网络、真实 PostgreSQL 连接池或 Linux 数据卷验收。
 

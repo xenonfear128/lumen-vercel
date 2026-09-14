@@ -10,7 +10,7 @@
     { "source": "/api/:path*", "destination": "/api/gateway" }
   ],
   "regions": [
-    "hnd1"
+    "sin1"
   ],
   "functions": {
     "api/**/*.js": {
