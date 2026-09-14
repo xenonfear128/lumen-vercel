@@ -334,6 +334,7 @@ export function usePlayer(scope = 'guest') {
   );
 
   const next = useCallback(() => {
+    if(native?.platform==='android'){void native.player!({action:'next'});return;}
     const t = pickNext(1);
     if (!t) return;
     historyRef.current.push(t.id);
@@ -341,6 +342,7 @@ export function usePlayer(scope = 'guest') {
   }, [pickNext, loadTrack]);
 
   const prev = useCallback(() => {
+    if(native?.platform==='android'){void native.player!({action:'previous'});return;}
     if (audio.currentTime > 4) {
       audio.currentTime = 0;
       return;
@@ -354,6 +356,7 @@ export function usePlayer(scope = 'guest') {
   useEffect(()=>{
     if(native?.platform!=='android')return;
     const listener=(event:Event)=>{const state=(event as CustomEvent).detail;if(state.scope!==scope)return;
+      if(state.guestStats && scope==='guest'){statsRef.current=state.guestStats;setStats(state.guestStats);}
       if(state.id)setCurrentId(state.id);setResolving(!!state.resolving);
       if(state.error)setTrackError({kind:state.error==='LOCAL_FILE_MISSING'||state.error==='TRACK_UNAVAILABLE'?'unavailable':'service',title:stateRef.current.playlists.flatMap(p=>p.tracks).find(t=>t.id===state.id)?.title||'',code:state.error});
     };
@@ -361,9 +364,10 @@ export function usePlayer(scope = 'guest') {
     void native.player!({action:'state'}).then(state=>listener(new CustomEvent('lumen-player-state',{detail:state})));
     return()=>window.removeEventListener('lumen-player-state',listener);
   },[scope]);
+  const nativeEpoch=cloud?.statisticsEpoch()||'initial';
   useEffect(()=>{
-    if(native?.platform==='android')void native.player!({action:'queue',scope,tracks:queue.map(t=>({...t,file:null,path:'',localUrl:undefined,coverUrl:null})),mode,epoch:cloud?.statisticsEpoch()||'initial'}).catch(()=>{});
-  },[queue,mode,scope,cloud,stats]);
+    if(native?.platform==='android')void native.player!({action:'queue',scope,tracks:queue.map(t=>({...t,file:null,path:'',localUrl:undefined,coverUrl:null})),mode,epoch:nativeEpoch}).catch(()=>{});
+  },[queue,mode,scope,nativeEpoch]);
   useEffect(()=>{
     if(native?.platform!=='android')return;
     const update=()=>void native!.player!({action:'analysis',enabled:viz!=='off'&&document.visibilityState!=='hidden'});
@@ -449,7 +453,7 @@ export function usePlayer(scope = 'guest') {
     audio.addEventListener("loadedmetadata", onDur);
     audio.addEventListener("durationchange", onDur);
     audio.addEventListener("ended", onEnded);
-    const flush = () => { saveStats(statsRef.current, scope); cloud?.flushTime(); };
+    const flush = () => { if(native?.platform!=='android')saveStats(statsRef.current, scope); cloud?.flushTime(); };
     window.addEventListener("beforeunload", flush);
     document.addEventListener("visibilitychange", flush);
     return () => {
@@ -725,6 +729,7 @@ export function usePlayer(scope = 'guest') {
   );
 
   const clearStats = useCallback(() => {
+    if(native?.platform==='android' && scope==='guest')void native.player!({action:'clearGuestStats'});
     const e = emptyStats();
     statsRef.current = e;
     setStats(e);
@@ -767,7 +772,7 @@ export function usePlayer(scope = 'guest') {
   useEffect(() => () => {
     loadSeqRef.current++;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveStats(statsRef.current, scope);
+    if(native?.platform!=='android')saveStats(statsRef.current, scope);
     engine.destroy();
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
   }, [engine, scope]);

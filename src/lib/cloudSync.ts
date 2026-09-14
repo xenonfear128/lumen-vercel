@@ -143,7 +143,7 @@ export class CloudSync {
     }
     this.schedule();
   }
-  statisticsEpoch() { return this.visible().epoch; }
+  statisticsEpoch() { let epoch=this.cache.state.epoch;for(const op of this.cache.pending)if(op.type==='stats.clear'&&op.epoch===epoch)epoch=op.nextEpoch!;return epoch; }
   clearStats() { this.flushTime(); this.add({ type:'stats.clear',epoch:this.visible().epoch,nextEpoch:crypto.randomUUID() }); }
   importStats(stats: StatsData, importId: string) {
     const epoch=this.visible().epoch;

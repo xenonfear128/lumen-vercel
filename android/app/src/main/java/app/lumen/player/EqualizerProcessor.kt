@@ -11,6 +11,7 @@ import kotlin.math.*
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class EqualizerProcessor:BaseAudioProcessor(){
  companion object {val BANDS=doubleArrayOf(31.5,63.0,125.0,250.0,500.0,1000.0,2000.0,4000.0,8000.0,16000.0)}
+ val sampleRate:Int get()=inputAudioFormat.sampleRate.coerceAtLeast(44100)
  @Volatile var analysisEnabled=false
  @Volatile var waveform=IntArray(2048){128};private set
  @Volatile var spectrum=IntArray(1024);private set

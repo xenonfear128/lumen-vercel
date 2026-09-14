@@ -263,6 +263,7 @@ export async function logout(cfg: NeteaseConfig): Promise<void> {
 /** Number that always seeds the same fallback cover for the same song id. */
 /** Wrap a CDN audio URL in the configured proxy (or leave it untouched when none is set). */
 export function applyAudioProxy(cfg: NeteaseConfig, url: string): string {
+  if(native)return url;
   return cfg.audioProxy ? `${normalizeBase(cfg.audioProxy)}?url=${encodeURIComponent(url)}` : url;
 }
 

@@ -228,3 +228,7 @@
 - 本机项目私有工具目录补齐了 JDK21/Android SDK36（未调用 Docker）。Android assembleDebug、JUnit EQ测试与 lintDebug 已运行通过；测试音覆盖中间8频段、两端搁架、预放大、旁路、输出频谱。后续改动须再次运行对应验证。
 - 真实生产公共会员播放、Android真机30分钟锁屏跨曲/来电/蓝牙/拔耳机、三端覆盖升级、macOS两架构硬件、固定Android发行签名及备份仍未验收。不得将构建成功等同于上述通过。
 - 生产迁移和生产部署尚未执行；新后端上线前必须显式执行002迁移。Vercel区域仍为sin1。公开发布须等待计划中的签名/真机验收。
+
+- 追加验证：405项中英日播放器布局通过；发现并修复手机顶栏下载链接挤占语言切换宽度。GitHub root run 34878734245 的 Windows/macOS 作业已通过，包含macOS Intel/Apple Silicon DMG与macOS运行时自动化（不等于两架构实体设备验收）。代码已推送两个仓库的 codex/cloud-clients 独立分支，生产main未变。
+
+- 首轮root客户端CI 34878734245 三平台全部成功：Windows未签名安装包和macOS两架构未签名DMG已经作为Actions artifacts生成。Android作业执行编译、测试音JUnit和lint，通过但未输出发行APK（未配置固定发行签名）。最终小修包括Android续播/访客统计/前台20Hz频谱刷新/统计代次与请求预算衔接，需以最后提交CI结果为准。

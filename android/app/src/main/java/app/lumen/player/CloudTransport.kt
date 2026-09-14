@@ -49,7 +49,7 @@ class CloudTransport(private val repo:DeviceRepository){
   }}catch(e:java.io.IOException){if(path=="/auth/logout")repo.setSession(null,null);throw IllegalStateException("NETWORK_UNAVAILABLE")}
  }
  private fun guest()=JSONObject().put("status",200).put("body",JSONObject().put("configured",true).put("initialized",true).put("user",JSONObject.NULL).put("csrf",JSONObject.NULL))
- fun resolve(id:Long,owner:String):String? {val result=request("/song/url/v1",JSONObject().put("id",id).put("level","exhigh"),true,owner);if(result.getInt("status")!=200)throw IllegalStateException(result.getJSONObject("body").optString("error","SOURCE_UNAVAILABLE"));val row=result.getJSONObject("body").getJSONArray("data").optJSONObject(0);return if(row==null||row.isNull("url"))null else mediaUrl(row.getString("url"))}
+ fun resolve(id:Long,owner:String):String? {val result=request("/song/url/v1",JSONObject().put("id",id).put("level","exhigh"),true,owner);if(result.getInt("status")!=200)throw IllegalStateException(result.getJSONObject("body").optString("error","SOURCE_UNAVAILABLE"));val row=result.getJSONObject("body").getJSONArray("data").optJSONObject(0);return if(row==null||row.isNull("url"))null else mediaUrl(row.getString("url").replace(Regex("^http:",RegexOption.IGNORE_CASE),"https:"))}
  fun syncEvents(owner:String){if(owner=="guest"||repo.scope()!=owner)return;
   val cache=repo.value("lumen.user.$owner.lumen.cloud.v1")?.let{JSONObject(it)}
   val pending=cache?.optJSONArray("pending")

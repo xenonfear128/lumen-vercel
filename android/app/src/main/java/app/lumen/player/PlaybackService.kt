@@ -35,7 +35,8 @@ class PlaybackService:MediaSessionService(){
   player=ExoPlayer.Builder(this,renderers).setMediaSourceFactory(sources).build();player.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true);player.setHandleAudioBecomingNoisy(true);player.setWakeMode(C.WAKE_MODE_LOCAL)
   player.addListener(object:Player.Listener{
    override fun onIsPlayingChanged(isPlaying:Boolean){tick();if(isPlaying){previousTick=SystemClock.elapsedRealtime();lastPosition=player.currentPosition;if(!counted){dead=0;counted=record(0,1)}}else{flush();previousTick=0};emit()}
-   override fun onPlaybackStateChanged(state:Int){if(state==Player.STATE_ENDED){flush();advance(1)};emit()}
+   override fun onPositionDiscontinuity(oldPosition:Player.PositionInfo,newPosition:Player.PositionInfo,reason:Int){flush();lastPosition=player.currentPosition;previousTick=if(player.isPlaying)SystemClock.elapsedRealtime() else 0}
+   override fun onPlaybackStateChanged(state:Int){if(state==Player.STATE_ENDED){flush();advance(1,true)};emit()}
    override fun onPlayerError(e:PlaybackException){flush();player.pause();dead++;error=if(track()?.optString("source")=="local")"LOCAL_FILE_MISSING" else "PLAYBACK_FAILED";if(dead<queue.length())advance(1);emit()}
   })
   val controls=object:ForwardingPlayer(player){
@@ -57,11 +58,11 @@ class PlaybackService:MediaSessionService(){
   handler.post(ticker)
  }
  override fun onGetSession(controllerInfo:MediaSession.ControllerInfo)=mediaSession
- private val ticker=object:Runnable{override fun run(){tick();emit();if(!player.isPlaying&&!resolving&&observer==null){if(idleSince==0L)idleSince=SystemClock.elapsedRealtime();if(SystemClock.elapsedRealtime()-idleSince>30000){stopSelf();return}}else idleSince=0;handler.postDelayed(this,500)}}
+ private val ticker=object:Runnable{override fun run(){tick();emit();if(!player.isPlaying&&!resolving&&observer==null){if(idleSince==0L)idleSince=SystemClock.elapsedRealtime();if(SystemClock.elapsedRealtime()-idleSince>30000){stopSelf();return}}else idleSince=0;handler.postDelayed(this,if(equalizer.analysisEnabled&&observer!=null)50 else 500)}}
  private fun track():JSONObject?=queue.optJSONObject(current)
- private fun tick(){val now=SystemClock.elapsedRealtime();if(previousTick>0){val elapsed=(now-previousTick).coerceIn(0,2000);val progressed=(player.currentPosition-lastPosition).coerceIn(0,2000);accumulated+=minOf(elapsed,progressed);if(accumulated>=15000)flush()};previousTick=if(player.isPlaying)now else 0;lastPosition=player.currentPosition}
- private fun flush(){if(accumulated>0&&record(accumulated,0))accumulated=0}
- private fun record(ms:Long,plays:Int):Boolean {val tr=track()?:return false;val title=tr.optString("title",tr.optString("fileName","Unknown"));val artist=tr.optString("artist","Unknown");val album=tr.optString("album","Unknown");val key="$artist::$album::$title";val data=JSONObject().put("key",key).put("title",title).put("artist",artist).put("day",SimpleDateFormat("yyyy-MM-dd",Locale.US).format(Date())).put("ms",ms).put("plays",plays).put("lastPlayed",System.currentTimeMillis());try{repo.event(owner,JSONObject().put("id",UUID.randomUUID().toString()).put("type","stats.add").put("epoch",epoch).put("data",data))}catch(_:Exception){error="STORAGE_UNAVAILABLE";emit();return false};val captured=owner;worker.execute{try{cloud.syncEvents(captured)}catch(_:Exception){}};return true}
+ private fun tick(){val now=SystemClock.elapsedRealtime();if(previousTick>0){val elapsed=(now-previousTick).coerceAtLeast(0);val progressed=(player.currentPosition-lastPosition).coerceAtLeast(0);accumulated+=minOf(elapsed,progressed);if(accumulated>=15000)flush()};previousTick=if(player.isPlaying)now else 0;lastPosition=player.currentPosition}
+ private fun flush(){while(accumulated>0){val part=minOf(accumulated,60000L);if(!record(part,0))return;accumulated-=part}}
+ private fun record(ms:Long,plays:Int):Boolean {val tr=track()?:return false;val title=if(tr.isNull("title"))tr.optString("fileName","Unknown")else tr.getString("title");val artist=if(tr.isNull("artist"))"Unknown" else tr.getString("artist");val album=if(tr.isNull("album"))"Unknown" else tr.getString("album");val key="$artist::$album::$title";val data=JSONObject().put("key",key).put("title",title).put("artist",artist).put("day",SimpleDateFormat("yyyy-MM-dd",Locale.US).format(Date())).put("ms",ms).put("plays",plays).put("lastPlayed",System.currentTimeMillis());try{if(owner=="guest")repo.guestStats(data)else repo.event(owner,JSONObject().put("id",UUID.randomUUID().toString()).put("type","stats.add").put("epoch",epoch).put("data",data))}catch(_:Exception){error="STORAGE_UNAVAILABLE";emit();return false};val captured=owner;worker.execute{try{cloud.syncEvents(captured)}catch(_:Exception){}};return true}
  fun command(args:JSONObject):JSONObject{
   when(args.getString("action")){
    "queue"->{val requested=args.getString("scope");require(requested==repo.scope()){ "AUTH_REQUIRED" };if(owner!=requested){stop();owner=requested};val id=track()?.optString("id");queue=args.getJSONArray("tracks");require(queue.length()<=20000);mode=args.optString("mode","repeat-all");val nextEpoch=args.optString("epoch","initial");if(nextEpoch!=epoch){tick();flush();epoch=nextEpoch};if(id!=null){current=(0 until queue.length()).firstOrNull{queue.getJSONObject(it).optString("id")==id}?:-1;if(current<0)stop()}}
@@ -76,6 +77,7 @@ class PlaybackService:MediaSessionService(){
    "eq"->{val gains=args.getJSONArray("gains");equalizer.configure(DoubleArray(10){gains.getDouble(it)},args.getDouble("preamp"),args.getBoolean("enabled"))}
    "analysis"->equalizer.analysisEnabled=args.getBoolean("enabled")
    "exit"->{stop();stopSelf()}
+   "clearGuestStats"->{if(owner=="guest"){tick();accumulated=0;repo.put("lumen.stats.v1",null)}}
    "state"->{}
    else->error("PLAYER_COMMAND_DENIED")
   };return state()
@@ -90,9 +92,10 @@ class PlaybackService:MediaSessionService(){
    }
   }catch(e:Exception){handler.post{if(seq==generation){resolving=false;error=e.message?.takeIf{it.matches(Regex("[A-Z_]+"))}?:"SOURCE_UNAVAILABLE";player.pause();emit()}}}}
  }
- private fun advance(direction:Int){if(queue.length()==0)return;val index=if(mode=="repeat-one"&&direction==1&&dead==0)current else if(mode=="shuffle"&&queue.length()>1){var n=(0 until queue.length()).random();if(n==current)n=(n+1)%queue.length();n}else Math.floorMod(current+direction,queue.length());load(index,true)}
- fun state():JSONObject=JSONObject().put("id",track()?.optString("id")?:JSONObject.NULL).put("scope",owner).put("playing",player.isPlaying).put("position",player.currentPosition/1000.0).put("duration",player.duration.coerceAtLeast(0)/1000.0).put("resolving",resolving).put("error",error?:JSONObject.NULL).also{if(equalizer.analysisEnabled){it.put("wave",JSONArray(equalizer.waveform.toList()));it.put("frequency",JSONArray(equalizer.spectrum.toList()))}}
- private fun emit(){observer?.invoke(state())}
+ private fun advance(direction:Int,automatic:Boolean=false){if(queue.length()==0)return;val index=if(mode=="repeat-one"&&automatic&&direction==1&&dead==0)current else if(mode=="shuffle"&&queue.length()>1){var n=(0 until queue.length()).random();if(n==current)n=(n+1)%queue.length();n}else Math.floorMod(current+direction,queue.length());load(index,true)}
+ fun state(includeGuest:Boolean=true):JSONObject=JSONObject().put("id",track()?.optString("id")?:JSONObject.NULL).put("scope",owner).put("playing",player.isPlaying).put("position",player.currentPosition/1000.0).put("duration",player.duration.coerceAtLeast(0)/1000.0).put("sampleRate",equalizer.sampleRate).put("resolving",resolving).put("error",error?:JSONObject.NULL).also{if(owner=="guest"&&includeGuest)repo.value("lumen.stats.v1")?.let{s->it.put("guestStats",JSONObject(s))};if(equalizer.analysisEnabled){it.put("wave",JSONArray(equalizer.waveform.toList()));it.put("frequency",JSONArray(equalizer.spectrum.toList()))}}
+ private var lastGuestEmit=0L
+ private fun emit(){val now=SystemClock.elapsedRealtime();val include=now-lastGuestEmit>1000;if(include)lastGuestEmit=now;observer?.invoke(state(include))}
  override fun onTaskRemoved(rootIntent:Intent?){equalizer.analysisEnabled=false;if(!player.playWhenReady){stop();stopSelf()}}
  override fun onDestroy(){tick();flush();generation++;handler.removeCallbacksAndMessages(null);player.release();mediaSession?.release();worker.shutdown();instance=null;super.onDestroy()}
 }

@@ -14,7 +14,7 @@ const extensions=new Set(['.mp3','.flac','.wav','.ogg','.opus','.m4a','.aac','.a
 if(process.env.LUMEN_TEST_USER_DATA)app.setPath('userData',process.env.LUMEN_TEST_USER_DATA);
 app.setAppUserModelId('app.lumen.player');
 function scope(){return repo.vault.get('user')?.id || 'guest';}
-function grant(value){const id=randomUUID();grants.set(id,{url:mediaUrl(value),scope:scope(),expires:Date.now()+3600000});for(const [k,g] of grants)if(g.expires<Date.now())grants.delete(k);return `lumen://app/media/${id}`;}
+function grant(value){const id=randomUUID();grants.set(id,{url:mediaUrl(String(value).replace(/^http:/i,'https:')),scope:scope(),expires:Date.now()+3600000});for(const [k,g] of grants)if(g.expires<Date.now())grants.delete(k);return `lumen://app/media/${id}`;}
 function trusted(event){if(event.sender!==window?.webContents||event.senderFrame!==window.webContents.mainFrame||!event.senderFrame.url.startsWith('lumen://app/'))throw Error('CLIENT_FRAME_DENIED');}
 function bind(name,handler){ipcMain.handle('lumen:'+name,(event,args)=>{trusted(event);return handler(args);});}
 function checkScope(value){if(value!==scope())throw Error('AUTH_REQUIRED');}

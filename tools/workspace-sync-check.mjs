@@ -15,13 +15,14 @@ async function files(base, dir) {
   const result = [];
   for (const entry of await readdir(join(base, dir), { withFileTypes: true })) {
     const path = join(dir, entry.name);
+    if(dir.startsWith('android') && (['build','.gradle','capacitor-cordova-android-plugins','public'].includes(entry.name)||['local.properties','capacitor.config.json','capacitor.plugins.json','config.xml'].includes(entry.name)))continue;
     if (entry.isDirectory()) result.push(...await files(base, path));
     else if (entry.isFile()) result.push(path);
   }
   return result;
 }
 const mismatches = [];
-const dirs = ['src', 'server', 'config', 'desktop'];
+const dirs = ['src', 'server', 'config', 'desktop', 'android'];
 for (const dir of dirs) {
   const paths = new Set([...await files(root, dir), ...await files(child, dir)]);
   for (const path of paths) {

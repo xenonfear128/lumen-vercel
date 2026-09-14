@@ -19,7 +19,7 @@ const names = Object.keys(result.output.files).map(name => name.replaceAll('\\',
 for (const name of ['server/api-handler.cjs','server/api.cjs','node_modules/@neteasecloudmusicapienhanced/api/module/login_qr_create.js']) {
   assert(names.includes(name), `Missing function dependency: ${name}`);
 }
-assert(!names.some(name=>/^node_modules\/(electron|electron-builder|react)\//.test(name)), 'Desktop/frontend dependencies must not enter the function');
+assert(!names.some(name=>/^node_modules\/(electron|electron-builder|react|@capacitor)\//.test(name)), 'Desktop/frontend dependencies must not enter the function');
 await mkdir(testResultsRoot,{recursive:true});
 const directory = await mkdtemp(resolve(testResultsRoot, 'vercel-bundle-'));
 for (const [name,file] of Object.entries(result.output.files)) {

@@ -50,4 +50,13 @@ class DeviceRepository private constructor(context: Context): SQLiteOpenHelper(c
  @Synchronized fun event(scope:String,event:JSONObject){writableDatabase.execSQL("INSERT OR IGNORE INTO events VALUES(?,?,?)",arrayOf(event.getString("id"),scope,event.toString()))}
  @Synchronized fun events(scope:String):JSONArray {val list=JSONArray();readableDatabase.rawQuery("SELECT value FROM events WHERE scope=? ORDER BY rowid LIMIT 10",arrayOf(scope)).use{while(it.moveToNext())list.put(JSONObject(it.getString(0)))};return list}
  @Synchronized fun acknowledge(scope:String,ids:JSONArray){val db=writableDatabase;db.beginTransaction();try{for(i in 0 until ids.length())db.delete("events","id=? AND scope=?",arrayOf(ids.getString(i),scope));db.setTransactionSuccessful()}finally{db.endTransaction()}}
+ @Synchronized fun guestStats(data:JSONObject){
+  val stats=value("lumen.stats.v1")?.let{JSONObject(it)}?:JSONObject().put("totalMs",0).put("days",JSONObject()).put("artists",JSONObject()).put("tracks",JSONObject())
+  val ms=data.getLong("ms");val day=data.getString("day");val artist=data.getString("artist");val id=data.getString("key")
+  stats.put("totalMs",stats.optLong("totalMs")+ms)
+  for(pair in listOf("days" to day,"artists" to artist)){val map=stats.optJSONObject(pair.first)?:JSONObject();map.put(pair.second,map.optLong(pair.second)+ms);stats.put(pair.first,map)}
+  val tracks=stats.optJSONObject("tracks")?:JSONObject();val track=tracks.optJSONObject(id)?:JSONObject().put("key",id).put("title",data.getString("title")).put("artist",artist).put("ms",0).put("plays",0)
+  track.put("ms",track.optLong("ms")+ms).put("plays",track.optInt("plays")+data.getInt("plays")).put("lastPlayed",data.getLong("lastPlayed"));tracks.put(id,track);stats.put("tracks",tracks);put("lumen.stats.v1",stats.toString())
+ }
+
 }

@@ -16,3 +16,8 @@ Dockerfile
 compose.yaml
 *.log
 *.code-workspace
+
+android
+dist-client
+*.jks
+*.keystore
