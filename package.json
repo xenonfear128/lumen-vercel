@@ -1,7 +1,7 @@
 {
   "name": "lumen-vercel",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,8 @@
     "start": "node server/start.cjs",
     "desktop:setup": "node node_modules/electron/install.js",
     "desktop": "electron .",
-    "build:win": "npm run typecheck && npm run build && electron-builder --win nsis --x64",
-    "pack:win": "npm run build && electron-builder --win --dir --x64",
+    "build:win": "npm run typecheck && npm run build && npm run client:stage && node tools/package-client.mjs win",
+    "pack:win": "npm run build && npm run client:stage && node tools/package-client.mjs win --dir",
     "test:server": "node --test tests/server.test.cjs",
     "test:desktop": "node tools/desktop-check.mjs",
     "build:linux": "node tools/package-linux.mjs",
@@ -29,9 +29,16 @@
     "test:managed": "node --test tests/managed.test.cjs",
     "test:site": "node tools/site-check.mjs",
     "test:cloud": "node --test tests/cloud-sync.test.mjs",
-    "test:linux": "node tools/linux-check.mjs"
+    "test:linux": "node tools/linux-check.mjs",
+    "build:client": "vite build --config vite.client.config.ts",
+    "client:stage": "node tools/stage-client.mjs",
+    "build:mac": "npm run typecheck && npm run build && npm run client:stage && node tools/package-client.mjs mac",
+    "android:sync": "npm run build:client && cap sync android",
+    "test:client": "node --test tests/client.test.cjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
@@ -56,7 +63,8 @@
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0"
+    "vite-plugin-singlefile": "2.3.0",
+    "@capacitor/cli": "^8.5.2"
   },
   "description": "Lumen local and online music player",
   "author": "Lumen",
@@ -69,13 +77,12 @@
     "productName": "Lumen",
     "directories": {
       "output": "release",
-      "buildResources": "build"
+      "buildResources": "build",
+      "app": "release/client-app"
     },
     "files": [
       "dist/**/*",
       "desktop/**/*",
-      "server/**/*",
-      "config/**/*",
       "build/icon.png",
       "package.json"
     ],
@@ -91,7 +98,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "Lumen-${version}-Windows-${arch}-Setup.${ext}"
+      "artifactName": "Lumen-${version}-Windows-${arch}-UNSIGNED-TEST.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -101,6 +108,12 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Lumen",
       "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": "dmg",
+      "minimumSystemVersion": "12.0",
+      "identity": null,
+      "artifactName": "Lumen-${version}-macOS-${arch}-UNSIGNED-TEST.${ext}"
     }
   },
   "overrides": {

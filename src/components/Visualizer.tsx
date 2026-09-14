@@ -4,7 +4,7 @@ import type { VizMode } from "../lib/types";
 import { cn } from "../utils/cn";
 
 interface Props {
-  engine: AudioEngine;
+  engine: Pick<AudioEngine, 'analyserNode' | 'context'> | import('../lib/androidPlayer').AndroidPlayerAdapter;
   mode: VizMode;
   playing: boolean;
   className?: string;

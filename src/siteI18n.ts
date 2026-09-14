@@ -1,5 +1,11 @@
 import { useI18n, type Lang } from './i18n';
 const words = {
+  checkUpdate:['检查更新','Check for updates','更新を確認'], updateAvailable:['有新版本可下载','An update is available','新しいバージョンがあります'],
+  legacyDesktop:['导入旧版桌面资料','Import old desktop library','旧版デスクトップのデータを取り込む'],
+  exitClient:['停止播放并退出应用','Stop playback and exit','再生を停止して終了'],
+  downloads:['下载客户端','Get the app','アプリをダウンロード'], installedVersion:['已安装','Installed','インストール済み'], releasePending:['验收中，暂未发布','Under verification, not released','検証中・未公開'], unsignedTest:['未签名桌面测试版，未完成系统信誉验证或 Apple 公证。','Unsigned desktop test build; no reputation verification or Apple notarization.','未署名のデスクトップテスト版。システムの信頼性検証・Apple公証は未実施です。'], androidDistribution:['官网 APK；发行版本使用固定签名以支持覆盖升级。','Website APK; releases use a stable signing key for upgrades.','公式サイトのAPK。更新用に固定の署名鍵を使用します。'], manualUpdateHint:['手动下载安装更新；升级保留本地资料与待同步内容。','Download and install updates manually. Upgrades retain local data and pending sync.','手動でダウンロード・更新します。ローカルデータと未同期の内容は保持されます。'],
+  NETWORK_UNAVAILABLE:['网络连接失败，请稍后重试','Network unavailable. Try again.','ネットワークに接続できません。再試行してください。'], CLIENT_UPDATE_REQUIRED:['客户端版本不兼容，请到官网下载更新；仍可本地播放','Update from the website to use cloud features. Local playback remains available.','クラウド機能には更新が必要です。ローカル再生は利用できます。'], PLAYBACK_FAILED:['播放失败，请重试或选择其他文件','Playback failed. Retry or select another file.','再生できません。再試行するか別のファイルを選択してください。'],
+
   expiredItem:['已过期','Expired','期限切れ'],
   account:['网站账号','Site account','サイトアカウント'], login:['登录','Sign in','ログイン'], register:['注册','Register','登録'], setup:['初始化管理员','Create administrator','管理者を作成'], reset:['重置密码','Reset password','パスワードを再設定'],
   username:['用户名','Username','ユーザー名'], password:['密码（12–128 个字符）','Password (12–128 characters)','パスワード（12〜128文字）'], currentPassword:['当前密码','Current password','現在のパスワード'], invite:['邀请码','Invitation code','招待コード'], setupToken:['初始化口令','Setup token','初期設定トークン'], resetToken:['重置凭据','Reset token','再設定トークン'],

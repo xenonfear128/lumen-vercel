@@ -1,9 +1,10 @@
+import { native, cachedDeviceUser } from '../lib/device';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { siteApi, setSiteSession, type SiteSession } from '../lib/siteApi';
 const initial: SiteSession = { configured: false, initialized: false, user: null, csrf: null };
 const Context = createContext({ ...initial, booted: false, refresh: async () => {} });
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const [value, setValue] = useState(initial);
+  const [value, setValue] = useState<SiteSession>(() => native ? {configured:true,initialized:true,user:cachedDeviceUser,csrf:null}:initial);
   const [booted, setBooted] = useState(false);
   const generation = useRef(0);
   const refresh = useCallback(async () => {
@@ -16,6 +17,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     finally { if (seq === generation.current) setBooted(true); }
   }, []);
   useEffect(() => {
+    if(native)setSiteSession({configured:true,initialized:true,user:cachedDeviceUser,csrf:null});
     void refresh();
     const expired = () => { setSiteSession(initial); setValue(initial); void refresh(); };
     const focus = () => { if(document.visibilityState !== 'hidden') void refresh(); };

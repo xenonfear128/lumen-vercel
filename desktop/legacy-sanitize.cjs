@@ -1,0 +1,2 @@
+function cloudTrack(t){const out={source:t.source==='netease'?'netease':'local'};for(const key of ['neteaseId','fileName','title','artist','album','genre','year','duration','codec','bitrate','sampleRate','fallbackCover','metaLoaded'])if(['string','number','boolean'].includes(typeof t[key])||t[key]===null)out[key]=typeof t[key]==='string'?t[key].slice(0,1500):t[key];out.fileName=String(out.fileName||'Audio').split(/[\\/]/).pop();return out;}
+module.exports={cloudTrack};

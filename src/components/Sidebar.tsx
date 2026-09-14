@@ -1,3 +1,4 @@
+import { native } from '../lib/device';
 import { metadataTypography } from "../lib/metadataTypography";
 import { useRef } from "react";
 import { useI18n } from "../i18n";
@@ -28,10 +29,10 @@ export function Sidebar({
   return (
     <aside className={cn("sidebar flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto", className)}>
       <div className="sidebar-actions grid shrink-0 gap-2">
-        <Button className="justify-start" variant="primary" icon={<Folder size={16} />} onClick={() => folderRef.current?.click()}>
+        <Button className="justify-start" variant="primary" icon={<Folder size={16} />} onClick={() => native ? void player.pickDeviceFiles(true) : folderRef.current?.click()}>
           {t.addFolder}
         </Button>
-        <Button className="justify-start" variant="soft" icon={<FileAudio size={16} />} onClick={() => filesRef.current?.click()}>
+        <Button className="justify-start" variant="soft" icon={<FileAudio size={16} />} onClick={() => native ? void player.pickDeviceFiles() : filesRef.current?.click()}>
           {t.addFiles}
         </Button>
         <input

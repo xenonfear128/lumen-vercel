@@ -1,0 +1,7 @@
+{
+  "appId": "app.lumen.player",
+  "appName": "Lumen",
+  "webDir": "dist-client",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "captureInput": true }
+}

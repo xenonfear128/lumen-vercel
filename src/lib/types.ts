@@ -6,6 +6,8 @@ export interface Track {
   localFileId?: string | null;
   source: TrackSource;
   file: File | null;
+  /** Opaque device capability, never synchronized. */
+  localUrl?: string;
   neteaseId: number | null;
   path: string;
   fileName: string;

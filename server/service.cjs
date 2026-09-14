@@ -48,7 +48,7 @@ function createLumenServer({ distDir = join(__dirname, '..', 'dist'), api = crea
         res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Lumen", charset="UTF-8"', 'Cache-Control': 'no-store' });
         return res.end('Authentication required');
       }
-      if (['/', '/index.html', '/admin', '/admin/'].includes(url.pathname) && ['GET', 'HEAD'].includes(req.method)) {
+      if (['/', '/index.html', '/admin', '/admin/', '/downloads', '/downloads/'].includes(url.pathname) && ['GET', 'HEAD'].includes(req.method)) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': html.length, 'Cache-Control': 'no-cache' });
         return res.end(req.method === 'HEAD' ? undefined : html);
       }

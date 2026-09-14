@@ -1,0 +1,12 @@
+{
+  "protocol": 1,
+  "minProtocol": 1,
+  "version": "0.3.0",
+  "published": false,
+  "notes": {
+    "zh": "云端客户端测试版：本地界面、设备会话、本地文件引用与后台播放。安装包通过平台验收后开放下载。",
+    "en": "Cloud client preview: bundled UI, device sessions, local file references and background playback. Downloads open after platform acceptance.",
+    "ja": "クラウドクライアントのテスト版：同梱UI、端末セッション、ローカルファイル参照、バックグラウンド再生。実機検証後に配布します。"
+  },
+  "artifacts": []
+}

@@ -1,9 +1,10 @@
+import { flushDevice, deviceStorage as localStorage } from './device';
 import type { Playlist, Track } from './types';
 import { emptyStats, type StatsData } from './stats';
 import { profileKey } from './profile';
-import { siteApi } from './siteApi';
+import { SiteError, siteApi } from './siteApi';
 
-export type SyncStatus = 'syncing' | 'synced' | 'retry';
+export type SyncStatus = 'syncing' | 'synced' | 'retry' | 'AUTH_REQUIRED' | 'NETWORK_UNAVAILABLE' | 'DATABASE_UNAVAILABLE' | 'STORAGE_UNAVAILABLE' | 'CLIENT_UPDATE_REQUIRED';
 interface Operation { id: string; type: string; playlistId?: string; entryId?: string; epoch?: string; nextEpoch?: string; importId?: string; data?: any }
 interface CloudState { playlists: Playlist[]; stats: StatsData; epoch: string }
 interface Cache { cursor: number; state: CloudState; pending: Operation[] }
@@ -142,6 +143,7 @@ export class CloudSync {
     }
     this.schedule();
   }
+  statisticsEpoch() { return this.visible().epoch; }
   clearStats() { this.flushTime(); this.add({ type:'stats.clear',epoch:this.visible().epoch,nextEpoch:crypto.randomUUID() }); }
   importStats(stats: StatsData, importId: string) {
     const epoch=this.visible().epoch;
@@ -177,9 +179,9 @@ export class CloudSync {
         const visible = this.visible();
         if(this.buffered) apply(visible,this.buffered);
         this.observed = clone(visible.playlists);
-        this.listener?.(visible); this.status?.(this.persist() ? 'synced' : 'retry');
+        this.listener?.(visible);const saved=this.persist();await flushDevice();this.status?.(saved ? 'synced' : 'STORAGE_UNAVAILABLE');
       }
-    } catch { if(this.active && revision === this.revision)this.status?.('retry'); }
+    } catch(error) { if(this.active && revision === this.revision)this.status?.(error instanceof SiteError ? (['AUTH_REQUIRED','CLIENT_UPDATE_REQUIRED','STORAGE_UNAVAILABLE'].includes(error.code)?error.code as SyncStatus:error.status>=500?'DATABASE_UNAVAILABLE':'retry') : 'NETWORK_UNAVAILABLE'); }
     finally {if(revision === this.revision)this.running=false;}
   }
 }

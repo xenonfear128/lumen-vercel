@@ -1,3 +1,4 @@
+import { native, flushDevice } from './device';
 export interface SiteUser { id: string; username: string; role: 'admin' | 'user'; disabled: boolean }
 export interface SiteSession { configured: boolean; initialized: boolean; user: SiteUser | null; csrf: string | null }
 let activeSession: SiteSession = { configured: false, initialized: false, user: null, csrf: null };
@@ -8,6 +9,13 @@ export class SiteError extends Error {
 }
 export async function siteApi<T>(path: string, body?: unknown, expectedUser?: string): Promise<T> {
   if (expectedUser && activeSession.user?.id !== expectedUser) throw new SiteError('AUTH_REQUIRED', 401);
+  if (native) {
+    await flushDevice();
+    const result = await native.request({path,body,expectedUser}).catch(e=>{throw new SiteError(String(e?.message).match(/[A-Z][A-Z_]{3,}/g)?.at(-1)||'NETWORK_UNAVAILABLE',503);});
+    if (expectedUser && activeSession.user?.id !== expectedUser) throw new SiteError('AUTH_REQUIRED',401);
+    if (result.status >= 400) { if(result.status===401) window.dispatchEvent(new Event('lumen-session-expired')); throw new SiteError(result.body.error || 'REQUEST_FAILED',result.status); }
+    return result.body as T;
+  }
   const csrf = activeSession.csrf;
   const response = await fetch(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin',

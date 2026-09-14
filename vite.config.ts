@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Dev proxy and direct production requests share the local companion API address.
   server: {
+    watch: { ignored: ["**/.tools/**", "**/android/**", "**/release/**", "**/test-results/**", "**/workspaces/**"] },
     proxy: {
       "/api": {
         target: `http://${services.neteaseApi.host}:${services.neteaseApi.port}`,

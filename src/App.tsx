@@ -1,3 +1,6 @@
+import { Downloads } from './components/Downloads';
+import { native } from './lib/device';
+import { deviceStorage as localStorage } from './lib/device';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Equalizer } from "./components/Equalizer";
 import { List, Music, Sliders } from "./components/Icons";
@@ -25,7 +28,8 @@ type MobileTab = "library" | "player" | "queue";
 
 export default function App() {
   const site = useSite();
-  const isAdmin = window.location.pathname.replace(/\/$/, '') === '/admin';
+  const isDownloads = window.location.pathname.replace(/\/$/,'') === '/downloads';
+  const isAdmin = !native && window.location.pathname.replace(/\/$/, '') === '/admin';
   const [lang, setLangState] = useState<Lang>(detectLang);
   const [dark, setDark] = useState<boolean>(() => document.documentElement.classList.contains("dark"));
   const [eqOpen, setEqOpen] = useState(false);
@@ -34,7 +38,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [tab, setTab] = useState<MobileTab>("player");
   const player = usePlayer(site.user?.id || 'guest');
-  const [accountOpen, setAccountOpen] = useState(() => !!site.user && !isAdmin && !localStorage.getItem(profileKey('lumen.import.v1', site.user.id)) && (loadLibrary().playlists.length > 0 || loadStats().totalMs > 0));
+  const [accountOpen, setAccountOpen] = useState(() => new URLSearchParams(location.search).has('account') || !!site.user && !isAdmin && !localStorage.getItem(profileKey('lumen.import.v1', site.user.id)) && (loadLibrary().playlists.length > 0 || loadStats().totalMs > 0));
 
   const t = useMemo(() => getDict(lang), [lang]);
   const setLang = useCallback((l: Lang) => {
@@ -78,6 +82,7 @@ export default function App() {
       depth = 0;
       setDragging(false);
       if (!e.dataTransfer) return;
+      if(native){await player.pickDeviceFiles();return;}
       const { files, folder } = await filesFromDataTransfer(e.dataTransfer);
       if (folder) void player.addFolder(files);
       else void player.addFiles(files);
@@ -115,7 +120,7 @@ export default function App() {
 
         <TopBar dark={dark} onToggleTheme={() => setDark((d) => !d)} onOpenAccount={() => setAccountOpen(true)} syncStatus={site.user ? player.syncStatus : undefined} />
 
-        {isAdmin ? <AdminPanel /> : <>
+        {isDownloads ? <Downloads /> : isAdmin ? <AdminPanel /> : <>
 
         <div className="flex min-h-0 flex-1 gap-5 px-3 pb-3 sm:px-5 sm:pb-5 lg:px-7 lg:pb-7">
           {/* Sidebar (desktop) */}

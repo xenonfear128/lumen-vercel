@@ -1,3 +1,5 @@
+import { native } from './device';
+import { deviceStorage as localStorage } from './device';
 import type { Playlist } from './types';
 import { profileKey } from './profile';
 
@@ -18,7 +20,7 @@ export function loadLibrary(scope = 'guest'): LibrarySnapshot {
     const playlists: Playlist[] = (Array.isArray(saved?.playlists) ? saved.playlists : [])
       .filter((p: Playlist) => p && typeof p.id === 'string' && typeof p.name === 'string' && ['folder', 'temp', 'netease'].includes(p.kind) && Array.isArray(p.tracks))
       .filter((p: Playlist) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
-      .map((p: Playlist) => ({ ...p, tracks: p.tracks.filter(t => t && typeof t.id === 'string' && ['local', 'netease'].includes(t.source)).map(t => ({ ...t, file: null, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) }));
+      .map((p: Playlist) => ({ ...p, tracks: p.tracks.filter(t => t && typeof t.id === 'string' && ['local', 'netease'].includes(t.source)).map(t => ({ ...t, file: null, localUrl: undefined, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) }));
     const entries = new Set<string>();
     for (const playlist of playlists) for (const track of playlist.tracks) {
       if (track.source === 'local') track.localFileId ||= track.id;
@@ -34,7 +36,7 @@ export function loadLibrary(scope = 'guest'): LibrarySnapshot {
   } catch { return empty; }
 }
 export function saveLibrary(snapshot: LibrarySnapshot, scope = 'guest') {
-  localStorage.setItem(profileKey(KEY, scope), JSON.stringify({ ...snapshot, playlists: snapshot.playlists.map(p => ({ ...p, tracks: p.tracks.map(t => ({ ...t, file: null, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) })) }));
+  localStorage.setItem(profileKey(KEY, scope), JSON.stringify({ ...snapshot, playlists: snapshot.playlists.map(p => ({ ...p, tracks: p.tracks.map(t => ({ ...t, file: null, localUrl: undefined, coverUrl: t.coverUrl?.startsWith('blob:') ? null : t.coverUrl })) })) }));
 }
 
 function openFiles(): Promise<IDBDatabase> {
@@ -58,8 +60,9 @@ export async function storeFiles(files: { id: string; localFileId?: string | nul
     });
   } finally { db.close(); }
 }
-export async function restoreFiles(ids: string[], scope = 'guest'): Promise<Map<string, File>> {
-  const files = new Map<string, File>();
+export async function restoreFiles(ids: string[], scope = 'guest'): Promise<Map<string, File|string>> {
+  if(native)return new Map(Object.entries(await native.files({ids,scope})));
+  const files = new Map<string, File|string>();
   if (!ids.length) return files;
   const db = await openFiles();
   try {
@@ -77,6 +80,7 @@ export async function restoreFiles(ids: string[], scope = 'guest'): Promise<Map<
   } finally { db.close(); }
 }
 export async function removeFiles(ids: string[], scope = 'guest') {
+  if(native){if(ids.length)await native.files({ids,scope,remove:true});return;}
   // Record deletions synchronously so closing the page cannot lose a pending
   // IndexedDB operation. The next page resumes cleanup before restoring audio.
   const key = profileKey('lumen.library.removedFiles', scope);

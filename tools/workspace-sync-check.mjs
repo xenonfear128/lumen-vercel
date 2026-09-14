@@ -21,7 +21,7 @@ async function files(base, dir) {
   return result;
 }
 const mismatches = [];
-const dirs = ['src', 'server', 'config'];
+const dirs = ['src', 'server', 'config', 'desktop'];
 for (const dir of dirs) {
   const paths = new Set([...await files(root, dir), ...await files(child, dir)]);
   for (const path of paths) {

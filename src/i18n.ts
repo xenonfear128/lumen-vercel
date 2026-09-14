@@ -1,3 +1,4 @@
+import { deviceStorage as localStorage } from './lib/device';
 import { createContext, useContext } from "react";
 
 export type Lang = "zh" | "en" | "ja";

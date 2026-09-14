@@ -40,18 +40,20 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
   }
   async function session(req) {
     if(!db) return null;
-    const raw=cookies(req.headers.cookie).lumen_session;
+    const native = req.headers.authorization?.startsWith('Bearer ');
+    const raw=native ? req.headers.authorization.slice(7) : cookies(req.headers.cookie).lumen_session;
     if(!raw||raw.length>100) return null;
-    const u=(await db.query('SELECT u.*,s.hash AS session_hash FROM lumen_sessions s JOIN lumen_users u ON u.id=s.user_id WHERE s.hash=$1 AND s.expires_at>now() AND NOT u.disabled',[hash(raw)])).rows[0];
-    return u ? {...u,csrf:csrfFor(raw)} : null;
+    const u=(await db.query('SELECT u.*,s.hash AS session_hash,s.kind FROM lumen_sessions s JOIN lumen_users u ON u.id=s.user_id WHERE s.hash=$1 AND s.kind=$2 AND s.expires_at>now() AND NOT u.disabled',[hash(raw),native?'client':'web'])).rows[0];
+    return u ? {...u,csrf:native?null:csrfFor(raw)} : null;
   }
   async function requireUser(req) {
     ready();const u=await session(req);
     if(!u || (req.headers['x-lumen-user'] && req.headers['x-lumen-user']!==u.id)) fail('AUTH_REQUIRED',401);
     return u;
   }
-  async function issue(tx,userId,res) {
-    const raw=token();await tx.query('INSERT INTO lumen_sessions(hash,user_id,expires_at) VALUES($1,$2,$3)',[hash(raw),userId,new Date(Date.now()+SESSION_SECONDS*1000)]);
+  async function issue(tx,userId,res,native=false) {
+    const raw=token();await tx.query('INSERT INTO lumen_sessions(hash,user_id,expires_at,kind) VALUES($1,$2,$3,$4)',[hash(raw),userId,new Date(Date.now()+SESSION_SECONDS*1000),native?'client':'web']);
+    if(native)return raw;
     const secure=config.VERCEL ? true : config.LUMEN_COOKIE_SECURE==='false' ? false : config.LUMEN_COOKIE_SECURE==='true'||config.NODE_ENV==='production';
     res.setHeader('Set-Cookie',`lumen_session=${raw}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_SECONDS}${secure?'; Secure':''}`);
     return csrfFor(raw);
@@ -84,7 +86,7 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
   async function playback(req,params) {
     const u=await requireUser(req);origin(req);
     // The form endpoint is retained, but a CSRF token is required for website playback.
-    if(!equal(req.headers['x-lumen-csrf']||'',u.csrf)) fail('CSRF_REJECTED',403);
+    if(u.kind!=='client'&&!equal(req.headers['x-lumen-csrf']||'',u.csrf)) fail('CSRF_REJECTED',403);
     if(!/^[1-9]\d{0,15}$/.test(String(params.id||''))||!['standard','exhigh','lossless','hires'].includes(params.level)) fail('PLAYBACK_INVALID');
     const configuredLimit=Number(config.LUMEN_PLAYBACK_LIMIT||30);
     await limit(`play:${u.id}`,Number.isInteger(configuredLimit)&&configuredLimit>0?configuredLimit:30);
@@ -107,6 +109,7 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
   }
   async function action(path,body,req,res) {
     if(path==='/auth/session') {
+      if(!req.lumenClient&&req.headers.authorization)fail('CLIENT_ROUTE_DENIED',403);
       if(!db)return {configured:false,initialized:false,user:null,csrf:null};
       const u=await session(req);const initialized=(await db.query('SELECT initialized FROM lumen_system WHERE id=1')).rows[0]?.initialized;
       return {configured:true,initialized:!!initialized,user:userView(u),csrf:u?.csrf||null};
@@ -127,7 +130,8 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
         return db.transaction(async tx=>{
           const locked=(await tx.query('SELECT * FROM lumen_users WHERE id=$1 FOR UPDATE',[u.id])).rows[0];
           if(locked.disabled||locked.password_hash!==u.password_hash) fail('LOGIN_INVALID',401);
-          return {user:userView(locked),csrf:await issue(tx,u.id,res)};
+          const credential=await issue(tx,u.id,res,req.lumenClient===true);
+          return req.lumenClient ? {user:userView(locked),token:credential,expiresIn:SESSION_SECONDS} : {user:userView(locked),csrf:credential};
         });
       }
       if(path==='/auth/setup'&&(!config.LUMEN_SETUP_TOKEN||!equal(body.setupToken||'',config.LUMEN_SETUP_TOKEN))) fail('SETUP_DENIED',403);
@@ -156,11 +160,13 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
       });
     }
     const u=await requireUser(req);
-    if(req.method!=='GET'&&!equal(req.headers['x-lumen-csrf']||'',u.csrf)) fail('CSRF_REJECTED',403);
+    if(req.lumenClient&&u.kind!=='client')fail('AUTH_REQUIRED',401);
+    if(u.kind==='client'&&!req.lumenClient&&path!=='/sync/exchange')fail('CLIENT_ROUTE_DENIED',403);
+    if(req.method!=='GET'&&u.kind!=='client'&&!equal(req.headers['x-lumen-csrf']||'',u.csrf)) fail('CSRF_REJECTED',403);
     if(path==='/auth/logout') {
       await db.query('DELETE FROM lumen_sessions WHERE hash=$1',[u.session_hash]);
       await db.query('UPDATE lumen_source SET qr_generation=NULL,qr_key=NULL,qr_owner=NULL WHERE qr_owner=$1',[u.session_hash]);
-      res.setHeader('Set-Cookie','lumen_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');return {ok:true};
+      if(u.kind==='web')res.setHeader('Set-Cookie','lumen_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');return {ok:true};
     }
     if(path==='/auth/password') {
       if(!await checkPassword(body.currentPassword,u.password_hash))fail('LOGIN_INVALID',401);
@@ -172,7 +178,7 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
       });return {ok:true};
     }
     if(path==='/sync/exchange') {await limit(`sync:${u.id}`,120);return synchronize(db,u.id,body);}
-    if(u.role!=='admin')fail('ADMIN_REQUIRED',403);
+    if(u.role!=='admin'||u.kind==='client')fail('ADMIN_REQUIRED',403);
     if(path==='/admin/status') {
       const s=await source();const failures=Number((await db.query("SELECT count(*) AS count FROM lumen_failures WHERE created_at>now()-interval '24 hours'")).rows[0].count);
       return {database:'ready',source:sourceView(s),failures};
@@ -253,10 +259,20 @@ function createManaged({ db=createDatabase(), api, config=process.env }={}) {
   }
   const getRoutes=new Set(['/auth/session','/admin/status','/admin/users','/admin/invites']);
   async function handle(req,res,pathname) {
-    const path=pathname.slice(4);
-    if(!/^\/(auth|admin|sync)\//.test(path))return false;
+    let path=pathname.slice(4);
+    if(!/^\/(auth|admin|sync|client)\//.test(path))return false;
     const respond=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','CDN-Cache-Control':'no-store','Vercel-CDN-Cache-Control':'no-store'});res.end(JSON.stringify(body));};
     try {
+      req.lumenClient=path.startsWith('/client/');
+      if(path==='/client/capabilities') {
+        if(req.method!=='GET')fail('METHOD_NOT_ALLOWED',405);
+        respond(200,{...require('../config/client-release.json'),site:'https://lumen.rupa.best',downloads:'https://lumen.rupa.best/downloads'});return true;
+      }
+      if(req.lumenClient) {
+        if(!['/client/auth/login','/client/auth/session','/client/auth/logout','/client/auth/password'].includes(path))fail('NOT_FOUND',404);
+        path=path.slice(7);
+        if(path!=='/auth/login'&&(await session(req))?.kind!=='client')fail('AUTH_REQUIRED',401);
+      }
       const method=getRoutes.has(path)?'GET':'POST';
       if(req.method!==method){res.setHeader('Allow',method);fail('METHOD_NOT_ALLOWED',405);}
       origin(req);

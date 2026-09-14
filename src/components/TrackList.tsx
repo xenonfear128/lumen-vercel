@@ -1,3 +1,4 @@
+import { native } from '../lib/device';
 import { metadataTypography } from "../lib/metadataTypography";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
@@ -115,7 +116,7 @@ export function TrackList({ player, className }: { player: Player; className?: s
                     </button>
                   </div>
                   <div className="min-w-0 flex-1">
-                    {tr.source === 'local' && !tr.file && <label className="site-file-link" onClick={e => e.stopPropagation()}>
+                    {tr.source === 'local' && !tr.file && !tr.localUrl && <label className="site-file-link" onClick={e => {e.stopPropagation();if(native){e.preventDefault();void player.pickDeviceFiles(false,tr.id);}}}>
                       <span>{st('missing')} · {st('attach')}</span>
                       <input type="file" accept="audio/*" aria-label={st('attach')} onChange={e => { const file = e.target.files?.[0]; if (file) void player.attachLocalFile(tr.id, file).catch(() => {}); e.target.value = ''; }} />
                     </label>}

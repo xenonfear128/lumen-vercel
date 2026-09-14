@@ -1,3 +1,4 @@
+import { native } from '../lib/device';
 import lumenMark from "../assets/brand/lumen-mark.png";
 import { LANGS, useI18n } from "../i18n";
 import { IconButton } from "./Button";
@@ -23,9 +24,10 @@ export function TopBar({ dark, onToggleTheme, onOpenAccount, syncStatus }: { dar
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <a className="site-link top-downloads" href="/downloads" onClick={e=>{if(native){e.preventDefault();void native.openExternal('/downloads');}}}>{st('downloads')}</a>
         <button type="button" className="site-account-button glass" onClick={onOpenAccount} aria-label={st('account')}>
           <span className="truncate">{site.user?.username || st('login')}</span>
-          {syncStatus && <span className="site-sync" aria-label={st(syncStatus)} title={st(syncStatus)}>{syncStatus === 'synced' ? '✓' : syncStatus === 'retry' ? '!' : '…'}</span>}
+          {syncStatus && <span className="site-sync" aria-label={st(syncStatus)} title={st(syncStatus)}>{syncStatus === 'synced' ? '✓' : syncStatus === 'syncing' ? '…' : '!'}</span>}
         </button>
         <div className="lang-switcher glass" role="radiogroup" aria-label={t.language}>
           <span

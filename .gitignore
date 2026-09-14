@@ -11,3 +11,7 @@ debug.log
 *.log
 .vercel
 .env*
+
+dist-client/
+*.jks
+*.keystore

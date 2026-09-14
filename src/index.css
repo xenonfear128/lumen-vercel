@@ -532,3 +532,8 @@ body {
   .top-bar .lang-switcher { min-width:0; flex-shrink:1; }
   .top-bar .lang-switcher-option { padding-left:8px; padding-right:8px; }
 }
+
+/* Installed clients respect display cutouts and on-screen navigation. */
+html[data-native="android"] #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+@media (max-width: 639px) { .top-downloads { display: none; } }

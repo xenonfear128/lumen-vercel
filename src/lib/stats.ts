@@ -1,3 +1,4 @@
+import { deviceStorage as localStorage } from './device';
 import { profileKey } from './profile';
 export interface TrackStat {
   key: string;

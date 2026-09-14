@@ -153,3 +153,30 @@ test('synchronization merges entries, deduplicates events, isolates users and pr
   assert.equal((await exchange(a.id,[{...playlist,id:'stale-p'}])).snapshot.playlists.length,0);
   const delta=await exchange(a.id,[],1);assert(delta.changes.length>0);assert(!delta.snapshot);
 });
+
+test('device bearer sessions are separate, hashed, revocable and never authorize admin or Cookie routes',async t=>{
+ const {admin,client,register,db}=await fixture(t);
+ const {user}=await register('deviceuser');const device=client();
+ const login=await device.call('/client/auth/login',{username:'deviceuser',password:'fixture-password-123'});
+ assert.equal(login.status,200);assert.equal(login.headers.get('set-cookie'),null);assert.equal(login.body.expiresIn,14*86400);
+ const bearer={Authorization:`Bearer ${login.body.token}`};
+ assert.equal((await device.call('/client/auth/session',undefined,bearer)).body.user.id,user.id);
+ assert.equal((await db.query('SELECT kind,hash FROM lumen_sessions WHERE hash=$1',[hash(login.body.token)])).rows[0].kind,'client');
+ assert.equal((await device.call('/auth/session',undefined,bearer)).status,403);
+ assert.equal((await device.call('/auth/password',{currentPassword:'fixture-password-123',password:'changed-password-123'},bearer)).status,403);
+ assert.equal((await device.call('/sync/exchange',{cursor:0,operations:[]},bearer)).status,200);
+ assert.equal((await device.play(undefined,bearer)).body.error,'SOURCE_UNCONFIGURED');
+ assert.equal((await device.call('/client/auth/session',undefined,{Cookie:admin.cookie})).status,401);
+ assert.equal((await device.call('/client/auth/session',undefined,{Authorization:`Bearer ${admin.cookie.split('=')[1]}`})).status,401);
+ const al=await client().call('/client/auth/login',{username:'admin',password:'fixture-password-123'});
+ assert.equal((await device.call('/admin/status',undefined,{Authorization:`Bearer ${al.body.token}`})).status,403);
+ assert.equal((await device.call('/client/admin/status',undefined,bearer)).status,404);
+ assert.equal((await device.call('/sync/exchange',{cursor:0,operations:[]},{...bearer,Origin:'https://evil.example'})).status,403);
+ await admin.call('/admin/users/update',{id:user.id,disabled:true});
+ assert.equal((await device.call('/client/auth/session',undefined,bearer)).status,401);
+ await admin.call('/admin/users/update',{id:user.id,disabled:false});
+ const again=await device.call('/client/auth/login',{username:'deviceuser',password:'fixture-password-123'});const b2={Authorization:`Bearer ${again.body.token}`};
+ assert.equal((await device.call('/client/auth/password',{currentPassword:'fixture-password-123',password:'changed-password-123'},b2)).status,200);
+ assert.equal((await device.call('/client/auth/session',undefined,b2)).status,401);
+ assert.equal((await device.call('/client/capabilities')).body.minProtocol,1);
+});

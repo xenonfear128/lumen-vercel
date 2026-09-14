@@ -1,3 +1,5 @@
+import { native } from './device';
+import { deviceStorage as localStorage } from './device';
 import { NETEASE_API_ORIGIN } from "../config/services";
 import { profileKey } from './profile';
 import { siteSession, SiteError } from './siteApi';
@@ -48,7 +50,7 @@ function normalizeConfig(value: unknown): NeteaseConfig {
   const saved = value as Partial<NeteaseConfig>;
   return {
     level: saved.level && ["standard", "exhigh", "lossless", "hires"].includes(saved.level) ? saved.level : defaults.level,
-    cookie: typeof saved.cookie === "string" ? saved.cookie : null,
+    cookie: native ? (saved.cookie ? 'native-managed' : null) : typeof saved.cookie === "string" ? saved.cookie : null,
     audioProxy: typeof saved.audioProxy === "string" ? saved.audioProxy : null,
   };
 }
@@ -80,6 +82,11 @@ async function call<T = ApiEnvelope>(cfg: NeteaseConfig, path: string, params: R
   const session = siteSession();
   if (path === '/song/url/v1' && !session.user) throw new SiteError('AUTH_REQUIRED', 401);
   if (cfg.cookie && path !== '/song/url/v1') body.set("cookie", cfg.cookie);
+  if(native) {
+    const result=await native.request({path,body:Object.fromEntries(body),music:true,expectedUser:session.user?.id}).catch(e=>{throw new SiteError(String(e?.message).match(/[A-Z][A-Z_]{3,}/g)?.at(-1)||'NETWORK_UNAVAILABLE',503);});
+    if(result.status>=400){if(result.status===401)window.dispatchEvent(new Event('lumen-session-expired'));throw new SiteError(result.body.error || 'SOURCE_UNAVAILABLE',result.status);}
+    return result.body as T;
+  }
   const res = await fetch(`${NETEASE_API_ORIGIN}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", ...(session.csrf && { 'X-Lumen-CSRF': session.csrf }) },

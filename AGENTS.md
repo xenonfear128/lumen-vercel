@@ -7,4 +7,4 @@
 - Read `HANDOFF.md` before development and update it with changes, actual validation results, and remaining release work. Preserve existing user changes.
 - When asked to push shared changes, verify and push both repositories. Do not commit credentials, local runtime caches, test output, or generated release packages.
 - The user explicitly prohibits calling local Docker: it is unusable on this machine. Keep Linux container/restart checks for CI or an authorized remote Linux environment; do not start or inspect local Docker.
-- Desktop work and automatic Windows packaging are paused. Focus new features on the Linux and Vercel website deployments while retaining desktop source.
+- The user has authorized Windows, macOS and Android cloud-client development and packaging. Clients bundle UI and use https://lumen.rupa.best; they must not bundle or launch the music backend. Linux website deployment remains supported.
