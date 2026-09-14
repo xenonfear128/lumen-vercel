@@ -232,3 +232,10 @@
 - 追加验证：405项中英日播放器布局通过；发现并修复手机顶栏下载链接挤占语言切换宽度。GitHub root run 34878734245 的 Windows/macOS 作业已通过，包含macOS Intel/Apple Silicon DMG与macOS运行时自动化（不等于两架构实体设备验收）。代码已推送两个仓库的 codex/cloud-clients 独立分支，生产main未变。
 
 - 首轮root客户端CI 34878734245 三平台全部成功：Windows未签名安装包和macOS两架构未签名DMG已经作为Actions artifacts生成。Android作业执行编译、测试音JUnit和lint，通过但未输出发行APK（未配置固定发行签名）。最终小修包括Android续播/访客统计/前台20Hz频谱刷新/统计代次与请求预算衔接，需以最后提交CI结果为准。
+
+## 2026-09-15 云端客户端收尾同步
+
+- Android 忽略规则补充 `.kotlin/`，工作区同步检查同步更新；根与 Vercel 两边保持一致。
+- 使用工作区 Node 运行时复核：TypeScript、Vite 生产构建、客户端认证测试和公共源码同步检查通过。
+- 当前终端未提供 Java，因此本机未重跑 Android Gradle；此前 CI 的 Android assembleDebug、JUnit EQ 和 lint 结果仍有效。桌面 Playwright 自动化在本机浏览器会话断言失败，未将其标记为通过；GitHub CI 的 Windows/macOS 构建结果仍为通过。
+- 本轮只提交并推送 codex/cloud-clients 分支；`config/client-release.json` 继续保持 `published=false`，没有生成正式下载地址、发行签名或执行生产迁移/部署。
