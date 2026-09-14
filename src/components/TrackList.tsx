@@ -1,3 +1,4 @@
+import { metadataTypography } from "../lib/metadataTypography";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import type { Player } from "../hooks/usePlayer";
@@ -37,7 +38,7 @@ export function TrackList({ player, className }: { player: Player; className?: s
       <header className="mb-3 flex shrink-0 flex-wrap items-end gap-3 px-1">
         <div className="min-w-0 flex-[1_1_10rem]">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{t.queue}</div>
-          <h2 className="truncate text-[20px] font-semibold tracking-tight">
+          <h2 {...metadataTypography(pl?.kind === "temp" ? undefined : pl?.name)} className="truncate text-[20px] font-semibold tracking-tight">
             {pl ? (pl.kind === "temp" ? t.tempPlaylist : pl.name) : t.library}
           </h2>
           {pl && (
@@ -112,13 +113,13 @@ export function TrackList({ player, className }: { player: Player; className?: s
                     </button>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={cn("truncate text-[13.5px]", isCurrent ? "font-semibold" : "font-medium")}>
+                    <div {...metadataTypography(tr.title ?? stripExt(tr.fileName))} className={cn("truncate text-[13.5px]", isCurrent ? "font-semibold" : "font-medium")}>
                       {tr.title ?? stripExt(tr.fileName)}
                     </div>
                     <div className="truncate text-[11.5px] text-muted">
-                      {tr.artist ?? t.unknown}
+                      <span {...metadataTypography(tr.artist)}>{tr.artist ?? t.unknown}</span>
                       <span className="mx-1.5 opacity-50">·</span>
-                      {tr.album ?? t.unknown}
+                      <span {...metadataTypography(tr.album)}>{tr.album ?? t.unknown}</span>
                     </div>
                   </div>
                   <div className="hidden w-8 shrink-0 text-right font-mono text-[11px] text-muted tnum sm:block">{i + 1}</div>

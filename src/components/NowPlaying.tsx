@@ -1,3 +1,4 @@
+import { metadataTypography } from "../lib/metadataTypography";
 import { useI18n } from "../i18n";
 import type { Player } from "../hooks/usePlayer";
 import { fmtBitrate, fmtSampleRate, fmtTime } from "../lib/format";
@@ -38,7 +39,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
     <section className={cn("now-playing flex h-full min-h-0 min-w-0 flex-col pb-1", className)}>
       {/* Cover + visualizer */}
       <div className="player-art relative flex min-h-48 flex-1 flex-col items-center justify-center py-2">
-        <div className="flex min-h-32 w-full flex-1 items-center justify-center [container-type:size]">
+        <div className="player-art-canvas flex min-h-32 w-full flex-1 items-center justify-center [container-type:size]">
           <div className="relative aspect-square" style={{ width: "min(100cqw, 100cqh, 420px)" }}>
             {player.viz === "ring" && (
               <div className="pointer-events-none absolute inset-0">
@@ -61,23 +62,23 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
         </div>
 
         {(player.viz === "bars" || player.viz === "wave") && (
-          <div className="mt-4 h-14 w-full max-w-[420px] shrink-0 opacity-90">
+          <div className="player-art-spectrum mt-4 h-14 w-full max-w-[420px] shrink-0 opacity-90">
             <Visualizer engine={player.engine} mode={player.viz} playing={playing} dark={dark} />
           </div>
         )}
       </div>
 
       {/* Meta */}
-      <div className="mt-2 text-center">
-        <h1 key={title} title={title} className={cn("fade-in px-2 text-[22px] font-semibold tracking-tight sm:text-[24px]", current ? "truncate" : "[overflow-wrap:anywhere]")}>
+      <div className="now-playing-meta mt-2 text-center">
+        <h1 {...metadataTypography(current ? title : undefined)} key={title} title={title} className={cn("fade-in px-2 text-[22px] font-semibold tracking-tight sm:text-[24px]", current ? "truncate" : "[overflow-wrap:anywhere]")}>
           {title}
         </h1>
-        <div className={cn("mt-1 text-[14px] text-muted", current ? "truncate" : "[overflow-wrap:anywhere]")}>
+        <div className={cn("now-playing-subtitle mt-1 text-[14px] text-muted", current ? "truncate" : "[overflow-wrap:anywhere]")}>
           {current ? (
             <>
-              <span className="text-[var(--fg)]/80">{artist}</span>
+              <span {...metadataTypography(artist)} className="text-[var(--fg)]/80">{artist}</span>
               <span className="mx-2 opacity-40">—</span>
-              <span>{album}</span>
+              <span {...metadataTypography(album)}>{album}</span>
             </>
           ) : (
             <span>{t.dropHint}</span>
@@ -96,7 +97,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
           </div>
         )}
         {chips.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
+          <div className="metadata-chips mt-2.5 flex flex-wrap justify-center gap-1.5">
             {chips.map((c, i) => (
               <span key={i} className="max-w-full rounded-full border border-line px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-wide text-muted [overflow-wrap:anywhere]">
                 {c}
@@ -107,7 +108,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
       </div>
 
       {/* Progress */}
-      <div className="mt-5 px-1">
+      <div className="now-playing-progress mt-5 px-1">
         <input
           type="range"
           min={0}
@@ -126,7 +127,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
       </div>
 
       {/* Transport */}
-      <div className="player-transport mt-3 flex items-center justify-between gap-2">
+      <div className="player-transport now-playing-transport mt-3 flex items-center justify-between gap-2">
         <IconButton label={modeIcon[player.mode].label} onClick={player.cycleMode} size={40} variant="soft" active={player.mode !== "repeat-all"}>
           {modeIcon[player.mode].icon}
         </IconButton>
@@ -168,7 +169,7 @@ export function NowPlaying({ player, dark, className }: { player: Player; dark: 
       </div>
 
       {/* Visualizer + mode selection */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="now-playing-settings mt-4 flex flex-wrap items-center justify-between gap-2">
         <Segmented<PlayMode>
           value={player.mode}
           onChange={player.setMode}

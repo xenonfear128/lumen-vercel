@@ -8,6 +8,7 @@ import builder from '@vercel/node';
 import utils from '@vercel/build-utils';
 
 const root = process.cwd();
+const testResultsRoot = process.env.TEST_RESULTS_DIR || resolve('test-results');
 const entrypoint = 'api/gateway.js';
 const files = { ...await utils.glob('api/**',root), ...await utils.glob('server/**',root),
   ...await utils.glob('package.json',root), ...await utils.glob('tsconfig.json',root) };
@@ -19,8 +20,8 @@ for (const name of ['server/api-handler.cjs','server/api.cjs','node_modules/@net
   assert(names.includes(name), `Missing function dependency: ${name}`);
 }
 assert(!names.some(name=>/^node_modules\/(electron|electron-builder|react)\//.test(name)), 'Desktop/frontend dependencies must not enter the function');
-await mkdir('test-results',{recursive:true});
-const directory = await mkdtemp(resolve('test-results/vercel-bundle-'));
+await mkdir(testResultsRoot,{recursive:true});
+const directory = await mkdtemp(resolve(testResultsRoot, 'vercel-bundle-'));
 for (const [name,file] of Object.entries(result.output.files)) {
   const target=resolve(directory,name);
   const local=relative(directory,target);
@@ -61,5 +62,5 @@ const run=spawnSync(process.execPath,['bundle-smoke.mjs',result.output.handler],
 process.stdout.write(run.stdout || '');
 process.stderr.write(run.stderr || '');
 assert.equal(run.status,0,'The isolated deployment bundle must run successfully');
-await writeFile('test-results/vercel-bundle.json',JSON.stringify({runtime:result.output.runtime,handler:result.output.handler,files:names.length,directory},null,2));
+await writeFile(join(testResultsRoot, 'vercel-bundle.json'),JSON.stringify({runtime:result.output.runtime,handler:result.output.handler,files:names.length,directory},null,2));
 console.log(`PASS Vercel Node builder: ${names.length} deployment files`);

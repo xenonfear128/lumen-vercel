@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const base = new URL(process.argv[2] || 'https://lumen-vercel-neon.vercel.app').origin;
+const outputDir = process.env.TEST_RESULTS_DIR || 'test-results';
 assert(base.startsWith('https://'), 'Check the actual HTTPS deployment');
 const checks = [];
 const accessHeaders = process.env.LUMEN_PREVIEW_ACCESS
@@ -45,7 +46,7 @@ console.log('PASS cloud API: search, details, playable URLs, QR key/image, login
 
 const browser = await chromium.launch({ headless: true });
 try {
-  await mkdir('test-results', { recursive: true });
+  await mkdir(outputDir, { recursive: true });
   for (const lang of ['zh', 'en', 'ja']) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     // Never forward a preview access credential to external music/CDN hosts.
@@ -95,9 +96,9 @@ try {
     await page.evaluate(() => document.fonts.ready);
     assert.deepEqual(errors, []);
     assert.deepEqual(violations, []);
-    await page.screenshot({ path: `test-results/cloud-${lang}.png`, fullPage: true });
+    await page.screenshot({ path: `${outputDir}/cloud-${lang}.png`, fullPage: true });
     await context.close();
     console.log(`PASS cloud browser ${lang}: real search, hidden API address, local WAV playback and CSP`);
   }
 } finally { await browser.close(); }
-await writeFile('test-results/vercel-cloud.json', JSON.stringify({ url: base, verifiedAt: new Date().toISOString(), api: checks, languages: ['zh', 'en', 'ja'] }, null, 2));
+await writeFile(`${outputDir}/vercel-cloud.json`, JSON.stringify({ url: base, verifiedAt: new Date().toISOString(), api: checks, languages: ['zh', 'en', 'ja'] }, null, 2));

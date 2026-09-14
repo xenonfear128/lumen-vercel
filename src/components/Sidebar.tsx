@@ -1,3 +1,4 @@
+import { metadataTypography } from "../lib/metadataTypography";
 import { useRef } from "react";
 import { useI18n } from "../i18n";
 import type { Player } from "../hooks/usePlayer";
@@ -91,7 +92,10 @@ export function Sidebar({
                       onNavigate?.();
                     }}
                     className={cn(
-                      "btn flex w-full items-center gap-3 rounded-xl pl-3 pr-11 py-2.5 text-left hover:!scale-[1.01] active:!scale-[0.99]",
+                      // Full-width rows sit inside an overflow-y-auto list, so the shared
+                      // `.btn` hover/active scale would be clipped at the list edge (the
+                      // delete button got cut in half). `.btn-row` cancels the transform.
+                      "btn btn-row flex w-full items-center gap-3 rounded-xl py-2.5 pl-3 pr-11 text-left",
                       active ? "btn-active" : "btn-ghost",
                     )}
                   >
@@ -99,7 +103,7 @@ export function Sidebar({
                       {pl.kind === "folder" ? <Folder size={16} /> : pl.kind === "netease" ? <Globe size={16} /> : <FileAudio size={16} />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-medium">{pl.kind === "temp" ? t.tempPlaylist : pl.name}</span>
+                      <span {...metadataTypography(pl.kind === "temp" ? undefined : pl.name)} className="block truncate text-[13.5px] font-medium">{pl.kind === "temp" ? t.tempPlaylist : pl.name}</span>
                       <span className={cn("block text-[11px] tnum", active ? "opacity-70" : "text-muted")}>
                         {t.trackCount(pl.tracks.length)}
                         {isQueue && player.playing && <span className="ml-1.5">· {t.playing}</span>}

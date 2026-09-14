@@ -74,7 +74,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn("inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-[20px] p-1 glass", className)}>
+    <div className={cn("segmented-control inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-[20px] p-1 glass", className)}>
       {options.map((o) => (
         <button
           key={o.value}

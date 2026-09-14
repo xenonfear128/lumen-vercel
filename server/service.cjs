@@ -1,5 +1,5 @@
 const http = require('node:http');
-const { readFileSync } = require('node:fs');
+const { readFileSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
 const { createHash, timingSafeEqual } = require('node:crypto');
 const { createApi, ROUTES } = require('./api.cjs');
@@ -25,6 +25,11 @@ async function readBody(req) {
 function createLumenServer({ distDir = join(__dirname, '..', 'dist'), api = createApi(), authUser = '', authPassword = '', desktopToken = '' } = {}) {
   if (Boolean(authUser) !== Boolean(authPassword)) throw new Error('Set both LUMEN_AUTH_USER and LUMEN_AUTH_PASSWORD');
   const html = readFileSync(join(distDir, 'index.html'));
+  // Single-file builds still emit link icons separately. Only expose these
+  // build artifacts, never a request-derived filesystem path.
+  const icons = new Map(readdirSync(distDir, { withFileTypes: true })
+    .filter(entry => entry.isFile() && /^(?:favicon|apple-touch-icon)(?:-[\w-]+)?\.png$/.test(entry.name))
+    .map(entry => [`/${entry.name}`, readFileSync(join(distDir, entry.name))]));
   const scriptHashes = Array.from(html.toString('utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi), match =>
     "'sha256-" + createHash('sha256').update(match[1]).digest('base64') + "'").join(' ');
   const csp = `default-src 'self'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https: http:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: http:; media-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`;
@@ -45,6 +50,15 @@ function createLumenServer({ distDir = join(__dirname, '..', 'dist'), api = crea
       if ((url.pathname === '/' || url.pathname === '/index.html') && ['GET', 'HEAD'].includes(req.method)) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': html.length, 'Cache-Control': 'no-cache' });
         return res.end(req.method === 'HEAD' ? undefined : html);
+      }
+      const icon = icons.get(url.pathname);
+      if (icon) {
+        if (!['GET', 'HEAD'].includes(req.method)) {
+          res.setHeader('Allow', 'GET, HEAD');
+          return json(res, 405, { code: 405 });
+        }
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': icon.length, 'Cache-Control': 'private, no-cache' });
+        return res.end(req.method === 'HEAD' ? undefined : icon);
       }
       if (url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
       if (!url.pathname.startsWith('/api/') || !ROUTES[url.pathname.slice(4)]) return json(res, 404, { code: 404 });

@@ -1,3 +1,4 @@
+import { metadataTypography } from "../lib/metadataTypography";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import type { Player } from "../hooks/usePlayer";
@@ -371,7 +372,7 @@ export function OnlinePanel({ player, onClose }: { player: Player; onClose: () =
                   <div key={s.id} className="group grid grid-cols-[2.5rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2 transition-colors hover:bg-[color-mix(in_oklab,var(--fg)_5%,transparent)]">
                     <Cover track={tr} className="h-10 w-10 shrink-0" rounded="rounded-lg" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-medium">{s.name}</div>
+                      <div {...metadataTypography(s.name)} className="truncate text-[13px] font-medium">{s.name}</div>
                       <div className="truncate text-[11.5px] text-muted">{s.ar.map((a) => a.name).join(", ")}</div>
                     </div>
                     <div className="font-mono text-[11px] text-muted tnum">{fmtTime(s.dt / 1000)}</div>
@@ -439,7 +440,7 @@ export function OnlinePanel({ player, onClose }: { player: Player; onClose: () =
                     className="btn flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]"
                     onClick={() => void importById(String(l.id))}
                   >
-                    <span className="truncate">{l.name}</span>
+                    <span {...metadataTypography(l.name)} className="truncate">{l.name}</span>
                     <span className="ml-3 shrink-0 font-mono text-[11px] text-muted tnum">
                       {l.trackCount ?? 0} {t.quantity}
                     </span>

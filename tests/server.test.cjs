@@ -1,6 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
 const { createLumenServer } = require('../server/service.cjs');
+const builtHtml = readFileSync(join(__dirname, '../dist/index.html'), 'utf8');
+const iconPaths = [...builtHtml.matchAll(/<link\b[^>]*href="([^"]+\.png)"/g)]
+  .map(match => new URL(match[1], 'http://localhost/').pathname);
 async function running(t, options = {}) {
   const calls = [];
   const server = createLumenServer({ api: async (path, params) => {
@@ -18,6 +23,43 @@ test('serves the built app and health without exposing arbitrary files', async t
   assert.equal((await fetch(`${url}/package.json`)).status,404);
   assert.equal((await fetch(`${url}/server/start.cjs`)).status,404);
   assert.equal((await fetch(`${url}/api/unknown`,{method:'POST'})).status,404);
+});
+test('serves the actual built PNG icons with correct bytes, HEAD and method handling', async t => {
+  const { url } = await running(t);
+  assert.equal(iconPaths.length, 2, 'Build must reference both favicon and Apple Touch icon');
+  for (const path of iconPaths) {
+    const expected = readFileSync(join(__dirname, '../dist', path));
+    const response = await fetch(`${url}${path}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'image/png');
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), expected);
+    const head = await fetch(`${url}${path}`, { method: 'HEAD' });
+    assert.equal(head.status, 200);
+    assert.equal(head.headers.get('content-length'), String(expected.length));
+    assert.equal(await head.text(), '');
+    const post = await fetch(`${url}${path}`, { method: 'POST' });
+    assert.equal(post.status, 405);
+    assert.equal(post.headers.get('allow'), 'GET, HEAD');
+  }
+  for (const path of ['/favicon-missing.png', '/src/assets/brand/favicon.png', '/%2e%2e%2fpackage.json', '/favicon.png%00']) {
+    assert.equal((await fetch(`${url}${path}`)).status, 404);
+  }
+});
+test('PNG icons remain behind server and desktop authentication', async t => {
+  assert.equal(iconPaths.length, 2);
+  for (const options of [
+    { authUser: 'test', authPassword: 'fixture-password' },
+    { desktopToken: 'fixture-desktop' },
+  ]) {
+    const { url } = await running(t, options);
+    const headers = options.desktopToken
+      ? { 'X-Lumen-Desktop': options.desktopToken }
+      : { Authorization: `Basic ${Buffer.from('test:fixture-password').toString('base64')}` };
+    for (const path of iconPaths) {
+      assert.equal((await fetch(`${url}${path}`)).status, options.desktopToken ? 403 : 401);
+      assert.equal((await fetch(`${url}${path}`, { headers })).status, 200);
+    }
+  }
 });
 test('POST API carries cookies in the body without shared Set-Cookie/cache', async t => {
   const {url,calls}=await running(t);

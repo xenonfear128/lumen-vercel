@@ -1,3 +1,4 @@
+import { metadataTypography } from "../lib/metadataTypography";
 import { useMemo } from "react";
 import { useI18n } from "../i18n";
 import type { Player } from "../hooks/usePlayer";
@@ -73,8 +74,8 @@ export function StatsPanel({ player }: { player: Player }) {
                 <li key={tr.key} className="flex items-center gap-3 text-[13px]">
                   <span className="w-4 font-mono text-[11px] text-muted tnum">{i + 1}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{tr.title}</div>
-                    <div className="truncate text-[11.5px] text-muted">{tr.artist}</div>
+                    <div {...metadataTypography(tr.title)} className="truncate font-medium">{tr.title}</div>
+                    <div {...metadataTypography(tr.artist)} className="truncate text-[11.5px] text-muted">{tr.artist}</div>
                   </div>
                   <div className="max-w-[45%] shrink-0 text-right [overflow-wrap:anywhere]">
                     <div className="font-mono text-[11.5px] tnum">{fmtDurationLong(tr.ms, u)}</div>
@@ -96,7 +97,7 @@ export function StatsPanel({ player }: { player: Player }) {
                     <div className="flex items-center justify-between gap-3">
                       <span className="flex min-w-0 items-center gap-3">
                         <span className="w-4 font-mono text-[11px] text-muted tnum">{i + 1}</span>
-                        <span className="truncate font-medium">{name}</span>
+                        <span {...metadataTypography(name)} className="truncate font-medium">{name}</span>
                       </span>
                       <span className="max-w-[45%] shrink-0 font-mono text-[11.5px] tnum text-muted [overflow-wrap:anywhere]">{fmtDurationLong(ms, u)}</span>
                     </div>

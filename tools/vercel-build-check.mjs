@@ -4,13 +4,14 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 const config = JSON.parse(await readFile('vercel.json', 'utf8'));
-const html = await readFile(join(config.outputDirectory, 'index.html'), 'utf8');
+const outputDirectory = process.env.VERCEL_OUTPUT_DIRECTORY || config.outputDirectory;
+const html = await readFile(join(outputDirectory, 'index.html'), 'utf8');
 const csp = config.headers.flatMap(rule => rule.headers).find(header => header.key === 'Content-Security-Policy').value;
 for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
   const src = /\bsrc="([^"]+)"/.exec(attributes)?.[1];
   if (src) {
     assert(src.startsWith('/assets/'), 'Production scripts must use bundled assets');
-    await access(join(config.outputDirectory, src));
+    await access(join(outputDirectory, src));
   } else if (body.trim()) {
     const hash = createHash('sha256').update(body).digest('base64');
     assert(csp.includes(`'sha256-${hash}'`), 'Update the CSP bootstrap hash when changing the inline theme script');

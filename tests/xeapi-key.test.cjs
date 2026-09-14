@@ -5,8 +5,9 @@ const { resolve, join } = require('node:path');
 const { createXeapiInitializer } = require('../server/xeapi-key.cjs');
 
 async function freshDirectory() {
-  await mkdir(resolve('test-results'), { recursive: true });
-  return mkdtemp(resolve('test-results/xeapi-key-'));
+  const root = process.env.TEST_RESULTS_DIR || resolve('test-results');
+  await mkdir(root, { recursive: true });
+  return mkdtemp(join(root, 'xeapi-key-'));
 }
 test('a fresh runtime fetches and writes the SDK public key once for concurrent requests', async () => {
   const directory = await freshDirectory();

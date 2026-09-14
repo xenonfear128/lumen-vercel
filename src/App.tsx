@@ -34,6 +34,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.lang = LANGS.find((l) => l.code === lang)?.html ?? "en";
+    document.documentElement.dataset.lang = lang;
   }, [lang]);
 
   useEffect(() => {
@@ -129,7 +130,7 @@ export default function App() {
             </div>
             <div
               className={cn(
-                "glass glass-sheen min-h-0 min-w-0 overflow-y-auto rounded-[28px] p-5 sm:p-6",
+                "player-panel glass glass-sheen min-h-0 min-w-0 overflow-y-auto rounded-[28px] p-5 sm:p-6",
                 tab === "player" && "block",
                 tab === "library" && "hidden md:block",
                 tab === "queue" && "hidden xl:block",
