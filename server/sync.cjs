@@ -75,7 +75,11 @@ async function synchronize(db, userId, body) {
     const state = (await tx.query('SELECT cursor,stats_epoch FROM lumen_sync_state WHERE user_id=$1 FOR UPDATE',[userId])).rows[0];
     let cursor = Number(state.cursor), epoch = state.stats_epoch;
     const acknowledged = [];
+    // Leave time for the snapshot and COMMIT within the function deadline.
+    // Only acknowledge processed operations; clients retain and retry the rest.
+    const deadline = Date.now() + 8000;
     for (const op of operations) {
+      if (acknowledged.length && Date.now() >= deadline) break;
       acknowledged.push(op.id);
       if ((await tx.query('SELECT id FROM lumen_operations WHERE user_id=$1 AND id=$2',[userId,op.id])).rows.length) continue;
       cursor++;

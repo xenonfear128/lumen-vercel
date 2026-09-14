@@ -29,6 +29,23 @@ function device(db,user='u',storage=new Map()) {
 }
 const track=id=>({id,source:'local',localFileId:'file-'+id,neteaseId:null,fileName:id+'.wav',path:'C:/private/audio',file:{bytes:'SECRET'},title:id,artist:'artist',album:null,genre:null,year:null,duration:30,codec:null,bitrate:null,sampleRate:null,coverUrl:'blob:secret',fallbackCover:0,metaLoaded:true});
 const playlist=tracks=>({id:'p',name:'Songs',kind:'temp',neteaseId:null,tracks});
+
+test('large imports finish across bounded requests and partially acknowledged transactions',async t=>{
+  const db=await database(t);
+  let clock=0;
+  // Simulate network round trips consuming the function's time budget.
+  t.mock.method(Date,'now',()=>clock);
+  const slow={transaction:fn=>db.transaction(tx=>fn({query:async(...args)=>{clock+=1100;return tx.query(...args);}}))};
+  const a=device(slow);t.after(()=>a.stop());await a.start();
+  a.sync.observe([playlist(Array.from({length:105},(_,i)=>track('large-'+i)))]);
+  await a.pull();
+  assert.equal(a.latest.playlists[0].tracks.length,105);
+  assert(a.payloads.filter(p=>p.operations.length).length>10);
+  assert(a.payloads.every(p=>p.operations.length<=10));
+  const snapshot=await synchronize(db,'u',{cursor:0,operations:[]});
+  assert.equal(snapshot.snapshot.playlists[0].tracks.length,105);
+  assert.equal(snapshot.cursor,106);
+});
 test('two offline devices merge additions and replay pending changes without resurrecting deletions',async t=>{
   const db=await database(t),a=device(db),b=device(db);t.after(()=>{a.stop();b.stop();});
   await a.start();a.sync.observe([playlist([track('one')])]);await a.pull();await b.start();

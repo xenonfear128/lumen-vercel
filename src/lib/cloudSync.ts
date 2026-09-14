@@ -160,7 +160,7 @@ export class CloudSync {
     try {
       this.flushTime();
       do {
-        let batch = this.cache.pending.slice(0,100);
+        let batch = this.cache.pending.slice(0,10);
         while(batch.length > 1 && JSON.stringify(batch).length > 200000) batch = batch.slice(0,Math.ceil(batch.length/2));
         const r = await siteApi<Exchange>('/sync/exchange',{cursor:this.cache.cursor,operations:batch},this.userId);
         if (!this.active || revision !== this.revision) return;
